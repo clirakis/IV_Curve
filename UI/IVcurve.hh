@@ -20,26 +20,20 @@
 #ifndef __IVCURVE_hh_
 #define __IVCURVE_hh_
 
-#  include <TROOT.h>
 #  include <TGFrame.h>
-#  include <TGWindow.h>
-#  include <TList.h>
-#  include <TGraph.h>
-#  include <TMultiGraph.h>
-#  include <TLegend.h>
-#  include <TRootEmbeddedCanvas.h>
-#  include <TGMenu.h>
-#  include <TGButton.h>
-#  include <TGStatusBar.h>
-#  include <TGToolBar.h>
 #  include <TPoint.h>
-#  include <Gtypes.h>
-#  include <Rtypes.h>
-#  include <TMarker.h>
-
+class TGWindow;
 class TLegend;
 class TMultiGraph;
 class TObjString;
+class TRootEmbeddedCanvas;
+class TGStatusBar;
+class TGToolBar;
+class TPoint;
+class TMarker;
+class TAxis;
+class TGLabel;
+class TColor;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -47,13 +41,12 @@ class IVCurve : public TGMainFrame {
     ClassDef(IVCurve, 0);
 
 public:
-    IVCurve(const TGWindow *p, UInt_t w = 800, UInt_t h = 400, Int_t v=0);
-    ~IVCurve();
-    void CloseWindow();
+    IVCurve(const TGWindow *p, UInt_t w = 800, UInt_t h = 400);
+    ~IVCurve(void);
+    void CloseWindow(void);
     void ProcessedEvent(Int_t event, Int_t x, Int_t y, TObject *selected);
     void HandleMenu(Int_t id);
     void HandleToolBar(Int_t id);
-    void SetVerbose(Int_t value) {verbose = value;};
     bool OpenAndParseFile(const char *file);
 
 private:
@@ -82,19 +75,25 @@ private:
     TMarker             *tm1, *tm2;
     // Regular zoom
     Double_t            fZoomLevel;
-    // Verbosity of printout.
-    Int_t               verbose;
+
+    // Labels for equipment status.
+    TGLabel *fMultimeter;
+    TGLabel *fVoltageSource;
+    // Create colors for our status
+    TColor *fRedColor;
+    TColor *fGreenColor;
 
     void AddEmbeddedCanvas(UInt_t w, UInt_t h);
-    void CreateStatusBar();
-    void CreateMenuBar();
-    void CreateToolBar();
-    void DoLoad();
+    void AddStatusPane(void);
+    void CreateStatusBar(void);
+    void CreateMenuBar(void);
+    void CreateToolBar(void);
+    void DoLoad(void);
     void PlotMe(Int_t);
-    void UnZoom();
-    void Zoom();
+    void UnZoom(void);
+    void Zoom(void);
     void ZoomAxis(TAxis *a);
-    void DoSaveAs();
+    void DoSaveAs(void);
 
     // Open and parse utilities
     bool CreateGraphObjects();

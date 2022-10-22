@@ -28,42 +28,32 @@ using namespace std;
 
 /// Root Includes
 #include <TROOT.h>
+#include <TGWindow.h>
+#include <TGToolBar.h>
+#include <TGStatusBar.h>
+#include <TGScrollBar.h>
 #include <TApplication.h>
 #include <TVirtualX.h>
-#include <TGResourcePool.h>
-#include <TGListBox.h>
-#include <TGListTree.h>
-#include <TGFSContainer.h>
-#include <TGClient.h>
+#include <TMultiGraph.h>
+#include <TAxis.h>
+#include <TGraph.h>
+#include <TMarker.h>
+#include <TLegend.h>
 #include <TGFrame.h>
-#include <TGIcon.h>
-#include <TGLabel.h>
 #include <TGButton.h>
-#include <TGTextEntry.h>
-#include <TGNumberEntry.h>
 #include <TGMsgBox.h>
 #include <TGMenu.h>
 #include <TGFileDialog.h>
 #include <TRootEmbeddedCanvas.h>
 #include <TCanvas.h>
 #include <TH1.h>
-#include <TH2.h>
-#include <TEnv.h>
 #include <TFile.h>
-#include <TGTextEditDialogs.h> // TGPrintDialog
 #include <TRootHelpDialog.h>
-#include <TQObject.h>
-#include <TGButtonGroup.h>
-#include <TFile.h>
-#include <TNtuple.h>
-#include <TGFileDialog.h>
 #include <TPoint.h>
-#include <TPad.h>
-#include <TVirtualPad.h>
-#include <TMultiGraph.h>
-#include <TLegend.h>
 #include <TSystem.h>
 #include <TObjString.h>
+#include <TGLabel.h>
+#include <TColor.h>
 
 // Local Includes
 #include "debug.h"
@@ -129,17 +119,20 @@ ToolBarData_t toolbar_data[] = {
 
 
 static const char *HelpText1 = 
-    "This dialog allows plotting of the traces produced by gnucap\n";
+    "This dialog allows plotting of the traces from running an IV-curve\n This requires usage of the Keithly 196 and 230 multimeter and voltage source";
 
 
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : IVCurve
  *
- * Description :
+ * Description : Create a cern root frame from which everything hangs. 
  *
- * Inputs :
+ * Inputs : 
+ *         p - parent frame/window
+ *         w - width in pixels
+ *         h - height in pixels
  *
  * Returns :
  *
@@ -152,16 +145,16 @@ static const char *HelpText1 =
  *
  *******************************************************************
  */
-IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h, int v) : 
+IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) : 
     TGMainFrame( p, w, h,  kVerticalFrame)
 {
-    // Used to store GUI elements that need to be deleted in the destructor.
-
+    SET_DEBUG_STACK;
     Connect("CloseWindow()", "IVCurve" , this, "CloseWindow()");
 
     CreateMenuBar();
     CreateToolBar();
-    AddEmbeddedCanvas(1400, 900);
+    AddEmbeddedCanvas(w, h);
+    AddStatusPane();
     CreateStatusBar();
 
     MapSubwindows();
@@ -177,14 +170,14 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h, int v) :
     ftmg         = NULL;
     fLegend      = NULL;
     fZoomLevel   = 2;
-    verbose      = v;
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
  *
  * Function Name : IVCurve Destructor
  *
- * Description :
+ * Description : clean up any resources we have allocated. 
  *
  * Inputs :
  *
@@ -201,11 +194,13 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h, int v) :
  */
 IVCurve::~IVCurve()
 {
+    SET_DEBUG_STACK;
     if (fCurrentFile)
     {
 	delete fCurrentFile;
     }
     delete fLastDir;
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -230,6 +225,7 @@ IVCurve::~IVCurve()
  */
 void IVCurve::AddEmbeddedCanvas(UInt_t w, UInt_t h)
 {
+    SET_DEBUG_STACK;
     /*
      * The remaining space I want to be a frame. 
      * Inside this frame I will embed a canvas for
@@ -271,6 +267,54 @@ void IVCurve::AddEmbeddedCanvas(UInt_t w, UInt_t h)
     //c1->SetEditable(kFALSE);
     //c1->SetCrosshair(1);
     c1->cd();
+    SET_DEBUG_STACK;
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : AddStatusPane
+ *
+ * Description : create a status pane at the bottom to show if the 
+ *               equipment is actually communicating. 
+ *
+ * Inputs : NONE
+ *
+ * Returns : NONE
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void IVCurve::AddStatusPane(void)
+{
+    SET_DEBUG_STACK;
+    TGHorizontalFrame* StatusPane = new TGHorizontalFrame(this, 10, 10);
+    TGLayoutHints*     L1 = new TGLayoutHints(kLHintsTop|kLHintsLeft|
+					      kLHintsExpandX,
+					      2, 2, 2, 2);
+
+    // Create the colors for the buttons
+    fRedColor = gROOT->GetColor(2);
+    fGreenColor = gROOT->GetColor(3);
+
+
+    fMultimeter = new TGLabel( StatusPane, TGHotString("Keithley 196"));
+    // Set to off. 
+    fMultimeter->SetTextColor(fRedColor);
+    StatusPane->AddFrame(fMultimeter, L1);
+
+    fVoltageSource = new TGLabel( StatusPane, TGHotString("Keithly 230"));
+    fVoltageSource->SetTextColor(fRedColor);
+    StatusPane->AddFrame(fVoltageSource, L1);
+
+    this->AddFrame(StatusPane, L1);
+    
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -294,6 +338,7 @@ void IVCurve::AddEmbeddedCanvas(UInt_t w, UInt_t h)
  */
 void IVCurve::CreateMenuBar()
 {
+    SET_DEBUG_STACK;
     TGPopupMenu *MenuFile, *MenuHelp, *MenuEdit;
 
     // Layout menu here. 
@@ -356,6 +401,7 @@ void IVCurve::CreateMenuBar()
     AddFrame(MenuBar, 
 	     new TGLayoutHints(kLHintsTop|kLHintsLeft|kLHintsExpandX,
 			       0, 0, 1, 1));
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -379,6 +425,7 @@ void IVCurve::CreateMenuBar()
  */
 void IVCurve::CreateToolBar()
 {
+    SET_DEBUG_STACK;
     TString Path;
 
     if(gSystem->Getenv("ROOTSYS") != NULL)
@@ -405,6 +452,7 @@ void IVCurve::CreateToolBar()
 					 0, 0));
     fToolBar->Connect("Pressed(Int_t)", "IVCurve", this, 
 		      "HandleToolBar(Int_t)");
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -428,6 +476,7 @@ void IVCurve::CreateToolBar()
  */
 void IVCurve::HandleToolBar(Int_t id)
 {
+    SET_DEBUG_STACK;
     TGButton *tb;
     TCanvas *c1;
 
@@ -459,6 +508,7 @@ void IVCurve::HandleToolBar(Int_t id)
 	OpenAndParseFile( NULL);
 	break;
     }
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -482,6 +532,7 @@ void IVCurve::HandleToolBar(Int_t id)
  */
 void IVCurve::CreateStatusBar()
 {
+    SET_DEBUG_STACK;
     /*
      * Finally add a status bar at the bottom. 
      * parts is the breakup of the 3 subdivisions of the
@@ -493,6 +544,7 @@ void IVCurve::CreateStatusBar()
     this->AddFrame( fStatusBar,  new 
 		    TGLayoutHints( kLHintsExpandX , 2, 2, 2, 2));
     fStatusBar->SetText("Please Select Data to Display.",0);
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -537,6 +589,7 @@ void IVCurve::CreateStatusBar()
  */
 void IVCurve::HandleMenu(Int_t id)
 {
+    SET_DEBUG_STACK;
     TRootHelpDialog *trh;
     //TCanvas *c1;
 
@@ -585,6 +638,7 @@ void IVCurve::HandleMenu(Int_t id)
 	printf("Menu item %d selected\n", id);
 	break;
    }
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -608,17 +662,17 @@ void IVCurve::HandleMenu(Int_t id)
  */
 void IVCurve::SetCurrentFileName(const char *File)
 {
+    SET_DEBUG_STACK;
     /* Delete current file name */
     if (fCurrentFile)
     {
 	delete fCurrentFile;
     }
+
+    // Add in logging for this. 
     fCurrentFile = new TString(File);
-    if(verbose>0) 
-    {
-	cout << "Current " << fCurrentFile << endl;
-    }
     fStatusBar->SetText( fCurrentFile->Data(), 0);
+    SET_DEBUG_STACK;
 }
 
 /**
@@ -644,6 +698,7 @@ void IVCurve::SetCurrentFileName(const char *File)
  */
 void IVCurve::DoLoad()
 {
+    SET_DEBUG_STACK;
     TGFileInfo fi;
 
     fi.fFileTypes = filetypes;
@@ -652,6 +707,7 @@ void IVCurve::DoLoad()
     new TGFileDialog( gClient->GetRoot(), 0, kFDOpen, &fi);
     *fLastDir = fi.fIniDir;
     OpenAndParseFile(fi.fFilename);
+    SET_DEBUG_STACK;
 }
 
 /**
@@ -676,8 +732,10 @@ void IVCurve::DoLoad()
  */
 void IVCurve::PlotMe(Int_t Index)
 {
+    SET_DEBUG_STACK;
     gPad->Clear();
     gPad->Update();
+    SET_DEBUG_STACK;
 }
 
 /**
@@ -702,8 +760,9 @@ void IVCurve::PlotMe(Int_t Index)
  */
 void IVCurve::CloseWindow()
 {
-   // Got close message for this MainFrame. Terminates the application.
-   gApplication->Terminate(0);
+    SET_DEBUG_STACK;
+    // Got close message for this MainFrame. Terminates the application.
+    gApplication->Terminate(0);
 }
 
 /**
@@ -729,6 +788,7 @@ void IVCurve::CloseWindow()
 void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py, 
 			     TObject *selected)
 {
+    SET_DEBUG_STACK;
     // Statics for rubber band zoom. 
     static Double_t x0, y0, x1, y1;
     static Int_t    pxold, pyold;
@@ -826,6 +886,7 @@ void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py,
 	printf("Event %d\n", event);
 	break;
     }
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -849,6 +910,7 @@ void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py,
  */
 void IVCurve::UnZoom()
 {
+    SET_DEBUG_STACK;
     TH1 *h = ftmg->GetHistogram();
     if (h)
     {
@@ -857,6 +919,7 @@ void IVCurve::UnZoom()
 	h->GetYaxis()->UnZoom();
     }
     gPad->Update();
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -880,6 +943,7 @@ void IVCurve::UnZoom()
  */
 void IVCurve::ZoomAxis(TAxis *a)
 {
+    SET_DEBUG_STACK;
     Double_t x,y, delta;
     x = a->GetXmin();
     y = a->GetXmax();
@@ -903,6 +967,7 @@ void IVCurve::ZoomAxis(TAxis *a)
     }
     cout << " Set range User " << x << " " << y << endl;
     a->SetRangeUser(x,y);
+    SET_DEBUG_STACK;
 }
 
 /**
@@ -927,6 +992,7 @@ void IVCurve::ZoomAxis(TAxis *a)
  */
 void IVCurve::Zoom()
 {
+    SET_DEBUG_STACK;
     TH1 *h = ftmg->GetHistogram();
     TAxis *ax;
     if (h)
@@ -939,6 +1005,7 @@ void IVCurve::Zoom()
 	fZoomLevel *= 2.0;
     }
     gPad->Update();
+    SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
@@ -962,6 +1029,7 @@ void IVCurve::Zoom()
  */
 bool IVCurve::OpenAndParseFile(const char *file)
 {
+    SET_DEBUG_STACK;
     char       msg[512], line[1024], *p;
     ifstream   *file_in;
     TObjString *title;
@@ -974,7 +1042,7 @@ bool IVCurve::OpenAndParseFile(const char *file)
     TString    *col1Title;
     Int_t      NColumns;    // Number of columns of data. 
 
-
+#if 0
     if (file != NULL)
     {
 	SetCurrentFileName(file);
@@ -1220,17 +1288,22 @@ bool IVCurve::OpenAndParseFile(const char *file)
 	}
 	gPad->Update();
     }
+#endif
     return true;
+    SET_DEBUG_STACK;
 }
 bool IVCurve::CreateGraphObjects()
 {
+    SET_DEBUG_STACK;
     ftmg         = new TMultiGraph();
     fLegend      = new TLegend(0.80, 0.75, 0.95, 0.89);
 
+    SET_DEBUG_STACK;
     return true;
 }
 bool IVCurve::CleanGraphObjects()
 {
+    SET_DEBUG_STACK;
     gPad->Clear();
 
     if (ftmg)
@@ -1243,6 +1316,7 @@ bool IVCurve::CleanGraphObjects()
 	delete fLegend;
 	fLegend = NULL;
     }
+    SET_DEBUG_STACK;
     return true;
 }
 
@@ -1269,6 +1343,7 @@ bool IVCurve::CleanGraphObjects()
  */
 void IVCurve::DoSaveAs()
 {
+    SET_DEBUG_STACK;
 
     TGFileInfo fi;
 
@@ -1287,4 +1362,5 @@ void IVCurve::DoSaveAs()
 	TCanvas *c1 = fEmbeddedCanvas->GetCanvas();
 	c1->SaveAs(fi.fFilename);
     }
+    SET_DEBUG_STACK;
 }

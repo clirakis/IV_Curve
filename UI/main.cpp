@@ -38,6 +38,7 @@ using namespace std;
 #include "debug.h"
 #include "CLogger.hh"
 #include "IVcurve.hh"
+
 // GPIB control.
 #include "Keithley2x0.hh"
 #include "Keithley196.hh"
@@ -48,8 +49,8 @@ static TApplication *theApp;
 
 // My variables. 
 const  double        Version   = 1.2;
-static Keithley196*  hgpib196;
-static Keithley2x0*  hgpib230;
+// static Keithley196*  hgpib196;
+// static Keithley2x0*  hgpib230;
 static CLogger*      LogPtr;
 static Bool_t        Offline = kFALSE;
 
@@ -159,8 +160,8 @@ static void Terminate (int sig)
     LogPtr->Log("# %s\n", msg);
     
     // User termination here
-    delete hgpib196;
-    delete hgpib230;
+//     delete hgpib196;
+//     delete hgpib230;
 
     free(FileName);
 
@@ -305,32 +306,33 @@ static bool Initialize(void)
     signal(SIGSYS, Terminate);    //
 
     LogPtr = new CLogger("IVCurve.log","IVCurve",Version);
+    LogPtr->SetVerbose(verbose);
 
     // User initialization goes here.
 
-    if (!Offline)
-    {
-	hgpib196 = new Keithley196( 3, verbose);
-	if (hgpib196->CheckError())
-	{
-	    LogPtr->Log("# Error opening device. perhaps wrong GPIB address.\n");
-	    delete hgpib196;
-	    hgpib196 = NULL;
-	    return false;
-	}
+//     if (!Offline)
+//     {
+// 	hgpib196 = new Keithley196( 3, verbose);
+// 	if (hgpib196->CheckError())
+// 	{
+// 	    LogPtr->Log("# Error opening device. perhaps wrong GPIB address.\n");
+// 	    delete hgpib196;
+// 	    hgpib196 = NULL;
+// 	    return false;
+// 	}
 
-	hgpib230 = new Keithley2x0( 13, 'V', verbose);
-	if (hgpib230->CheckError())
-	{
-	    LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);
-	    delete hgpib230;
-	    hgpib230 = NULL;
-	    return false;
-	}
-    }
+// 	hgpib230 = new Keithley2x0( 13, 'V', verbose);
+// 	if (hgpib230->CheckError())
+// 	{
+// 	    LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);
+// 	    delete hgpib230;
+// 	    hgpib230 = NULL;
+// 	    return false;
+// 	}
+//     }
 
     // User initialization goes here.
-    plotWindow = new IVCurve(gClient->GetRoot(), 800, 400, verbose);
+    plotWindow = new IVCurve(gClient->GetRoot(), 640, 480);
     if (FileName)
     {
 	plotWindow->OpenAndParseFile(FileName);
