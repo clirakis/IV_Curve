@@ -44,7 +44,6 @@ using namespace std;
 #include <TGMsgBox.h>
 #include <TGMenu.h>
 #include <TGFileDialog.h>
-#include <TGButton.h>
 #include <TRootEmbeddedCanvas.h>
 #include <TCanvas.h>
 #include <TH1.h>
@@ -64,6 +63,7 @@ using namespace std;
 #include <TMultiGraph.h>
 #include <TLegend.h>
 #include <TSystem.h>
+#include <TObjString.h>
 
 // Local Includes
 #include "debug.h"
@@ -538,7 +538,7 @@ void IVCurve::CreateStatusBar()
 void IVCurve::HandleMenu(Int_t id)
 {
     TRootHelpDialog *trh;
-    TCanvas *c1;
+    //TCanvas *c1;
 
     // Handle menu items.
     switch (id) 

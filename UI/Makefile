@@ -14,10 +14,14 @@
 TARGET = IVplot
 #
 # Compile time resolution.
+# Turn on debug
+# Use cern root as well. 
+# Libraries are Keithly, GPIB, and utility from me. 
 #
-EXT_CFLAGS +=  -std=gnu++11 -g
+EXT_CFLAGS +=  -g
 INCLUDE = -I$(COMMON)/GPIB -I$(COMMON)/Keithley -I$(DRIVE)/common/utility \
 	-I$(ROOT_INC)
+
 LIBS = -L$(HOME)/lib_linux -lKeithley -lmygpib -lutility \
 	-L/usr/local/lib -lgpib $(ROOT_GLIBS) 
 
