@@ -34,6 +34,8 @@ class TMarker;
 class TAxis;
 class TGLabel;
 class TColor;
+class Instruments;
+class TGPopupMenu;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -77,12 +79,17 @@ private:
     Double_t            fZoomLevel;
 
     // Labels for equipment status.
-    TGLabel *fMultimeter;
-    TGLabel *fVoltageSource;
+    TGLabel*            fMultimeter;
+    TGLabel*            fVoltageSource;
     // Create colors for our status
-    TColor *fRedColor;
-    TColor *fGreenColor;
+    TColor*             fRedColor;
+    TColor*             fGreenColor;
 
+    // Instrument control
+    Instruments*        fInstruments;
+    TGPopupMenu*        fMenuInstrument; 
+
+    // Private functions.
     void AddEmbeddedCanvas(UInt_t w, UInt_t h);
     void AddStatusPane(void);
     void CreateStatusBar(void);
@@ -94,6 +101,8 @@ private:
     void Zoom(void);
     void ZoomAxis(TAxis *a);
     void DoSaveAs(void);
+
+    void CheckInstrumentStatus(void);
 
     // Open and parse utilities
     bool CreateGraphObjects();

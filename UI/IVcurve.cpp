@@ -58,6 +58,7 @@ using namespace std;
 // Local Includes
 #include "debug.h"
 #include "IVcurve.hh"
+#include "Instruments.hh"
 #include "ParamDialog.hh"
 
 // Setup print queues. Way out of date!
@@ -93,7 +94,9 @@ enum SVPCommandIdentifiers {
    M_ZOOM_MINUS,
    M_ZOOM_SELECTED,
    M_RELOAD,
-   M_FILE_SAVEAS
+   M_FILE_SAVEAS,
+   M_INST_K196,
+   M_INST_K230,
 };
 
 // Toolbar stuff
@@ -149,6 +152,10 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     TGMainFrame( p, w, h,  kVerticalFrame)
 {
     SET_DEBUG_STACK;
+
+    // Open the instruments - 
+    fInstruments = new Instruments();
+
     Connect("CloseWindow()", "IVCurve" , this, "CloseWindow()");
 
     CreateMenuBar();
@@ -170,6 +177,8 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     ftmg         = NULL;
     fLegend      = NULL;
     fZoomLevel   = 2;
+
+
     SET_DEBUG_STACK;
 }
 /**
@@ -200,6 +209,7 @@ IVCurve::~IVCurve()
 	delete fCurrentFile;
     }
     delete fLastDir;
+    delete fInstruments;
     SET_DEBUG_STACK;
 }
 /**
@@ -367,6 +377,11 @@ void IVCurve::CreateMenuBar()
 
     MenuEdit->AddEntry("P&arameters"  , M_EDIT_PARAMETERS);
 
+    // Instrument Menu ------------------------------------
+    
+    fMenuInstrument = new TGPopupMenu(gClient->GetRoot());
+    fMenuInstrument->AddEntry("Keithley 196", M_INST_K196);
+    fMenuInstrument->AddEntry("Keithley 230", M_INST_K230);
 
     // Help menu -------------------------------------------
     MenuHelp = new TGPopupMenu(gClient->GetRoot());
@@ -384,6 +399,10 @@ void IVCurve::CreateMenuBar()
 		       TGLayoutHints(kLHintsTop | kLHintsLeft, 
 				     0, 4, 0, 0));
 
+    MenuBar->AddPopup("&Instruments", fMenuInstrument, new 
+		       TGLayoutHints(kLHintsTop | kLHintsLeft, 
+				     0, 4, 0, 0));
+
     MenuBar->AddPopup("&Help", MenuHelp, 
 		      new TGLayoutHints(kLHintsTop | kLHintsRight) );
 
@@ -394,6 +413,9 @@ void IVCurve::CreateMenuBar()
 
     MenuEdit->Connect("Activated(Int_t)", "IVCurve", this,
 		       "HandleMenu(Int_t)");
+
+    fMenuInstrument->Connect("Activated(Int_t)", "IVCurve", this,
+			    "HandleMenu(Int_t)");
 
     MenuHelp->Connect("Activated(Int_t)", "IVCurve", this,
 		       "HandleMenu(Int_t)");
@@ -530,7 +552,7 @@ void IVCurve::HandleToolBar(Int_t id)
  *
  *******************************************************************
  */
-void IVCurve::CreateStatusBar()
+void IVCurve::CreateStatusBar(void)
 {
     SET_DEBUG_STACK;
     /*
@@ -627,6 +649,31 @@ void IVCurve::HandleMenu(Int_t id)
 
     case M_EDIT_PARAMETERS:
 	new ParamDlg(this);
+	break;
+    case M_INST_K196:
+	// Check the status of the menu and do the appropriate action. 
+	if (fMenuInstrument->IsEntryChecked(M_INST_K196))
+	{
+	    cout << "Checked" << endl;
+	    fMenuInstrument->UnCheckEntry(M_INST_K196);
+	}
+	else
+	{
+	    cout << "Unchecked." << endl;
+	    fMenuInstrument->CheckEntry(M_INST_K196);
+	}
+	break;
+    case M_INST_K230:
+	if (fMenuInstrument->IsEntryChecked(M_INST_K230))
+	{
+	    cout << "Checked" << endl;
+	    fMenuInstrument->UnCheckEntry(M_INST_K230);
+	}
+	else
+	{
+	    cout << "Unchecked." << endl;
+	    fMenuInstrument->CheckEntry(M_INST_K230);
+	}
 	break;
     case M_HELP_ABOUT:
 	trh = new TRootHelpDialog ( this,"IVCurve Help", 600, 400);
@@ -990,7 +1037,7 @@ void IVCurve::ZoomAxis(TAxis *a)
  *
  *******************************************************************
  */
-void IVCurve::Zoom()
+void IVCurve::Zoom(void)
 {
     SET_DEBUG_STACK;
     TH1 *h = ftmg->GetHistogram();
@@ -1030,6 +1077,7 @@ void IVCurve::Zoom()
 bool IVCurve::OpenAndParseFile(const char *file)
 {
     SET_DEBUG_STACK;
+#if 0
     char       msg[512], line[1024], *p;
     ifstream   *file_in;
     TObjString *title;
@@ -1042,7 +1090,6 @@ bool IVCurve::OpenAndParseFile(const char *file)
     TString    *col1Title;
     Int_t      NColumns;    // Number of columns of data. 
 
-#if 0
     if (file != NULL)
     {
 	SetCurrentFileName(file);
@@ -1363,4 +1410,49 @@ void IVCurve::DoSaveAs()
 	c1->SaveAs(fi.fFilename);
     }
     SET_DEBUG_STACK;
+}
+
+/**
+ ******************************************************************
+ *
+ * Function Name : 
+ *
+ * Description : 
+ *               
+ *
+ * Inputs : none
+ *
+ * Returns : none
+ *
+ * Error Conditions : 
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void IVCurve::CheckInstrumentStatus(void)
+{
+    SET_DEBUG_STACK;
+
+    if (fInstruments->Keithley196_OK())
+    {
+	fMenuInstrument->CheckEntry(M_INST_K196);
+    }
+    else
+    {
+	fMenuInstrument->UnCheckEntry(M_INST_K196);
+    }
+
+    if (fInstruments->Keithley230_OK())
+    {
+	fMenuInstrument->CheckEntry(M_INST_K230);
+    }
+    else
+    {
+	fMenuInstrument->UnCheckEntry(M_INST_K230);
+    }
+
 }

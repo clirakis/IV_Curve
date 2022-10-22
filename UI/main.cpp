@@ -39,20 +39,13 @@ using namespace std;
 #include "CLogger.hh"
 #include "IVcurve.hh"
 
-// GPIB control.
-#include "Keithley2x0.hh"
-#include "Keithley196.hh"
-
 // Root specific
 Bool_t rootint = kFALSE;
 static TApplication *theApp;
 
 // My variables. 
 const  double        Version   = 1.2;
-// static Keithley196*  hgpib196;
-// static Keithley2x0*  hgpib230;
 static CLogger*      LogPtr;
-static Bool_t        Offline = kFALSE;
 
 extern char         *optarg;
 static Int_t        verbose = 0;
@@ -160,8 +153,6 @@ static void Terminate (int sig)
     LogPtr->Log("# %s\n", msg);
     
     // User termination here
-//     delete hgpib196;
-//     delete hgpib230;
 
     free(FileName);
 
@@ -203,7 +194,6 @@ static void Help(void)
     cout << "* Available options are :                  *" << endl;
     cout << "*     -f Filename                          *" << endl;
     cout << "*     -h Help                              *" << endl;
-    cout << "*     -o Offline.                          *" << endl;
     cout << "*     -v verbose level (integer)           *" << endl;
     cout << "*                                          *" << endl;
     cout << "********************************************" << endl;
@@ -235,27 +225,21 @@ static void ProcessCommandLineArgs(int argc, char **argv)
     SET_DEBUG_STACK;
     do
     {
-        option = getopt(argc, argv, "F:f:hHoOv:V:");
+        option = getopt(argc, argv, "F:f:hHv:V:");
         switch(option)
         {
 	case 'f':
 	case 'F':
 	    FileName = strdup(optarg);
-	    Offline  = kTRUE;
 	    break;
         case 'h':
         case 'H':
             Help();
             Terminate(0);
             break;
-        case 'o':
-        case 'O':
-	    Offline = kTRUE;
-	    break;
 	case 'v':
         case 'V':
             verbose = atoi(optarg);
-	    cout << "Verbose set to: " << verbose << endl;
             break;
         }
     } while(option != -1);
@@ -310,33 +294,9 @@ static bool Initialize(void)
 
     // User initialization goes here.
 
-//     if (!Offline)
-//     {
-// 	hgpib196 = new Keithley196( 3, verbose);
-// 	if (hgpib196->CheckError())
-// 	{
-// 	    LogPtr->Log("# Error opening device. perhaps wrong GPIB address.\n");
-// 	    delete hgpib196;
-// 	    hgpib196 = NULL;
-// 	    return false;
-// 	}
-
-// 	hgpib230 = new Keithley2x0( 13, 'V', verbose);
-// 	if (hgpib230->CheckError())
-// 	{
-// 	    LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);
-// 	    delete hgpib230;
-// 	    hgpib230 = NULL;
-// 	    return false;
-// 	}
-//     }
 
     // User initialization goes here.
     plotWindow = new IVCurve(gClient->GetRoot(), 640, 480);
-    if (FileName)
-    {
-	plotWindow->OpenAndParseFile(FileName);
-    }
     return true;
 }
 /**
