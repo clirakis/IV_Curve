@@ -7,6 +7,7 @@
 # 	--------	--	------
 #	22-Nov-18       CBL     Original
 #       22-Oct-22       CBL     Reconfigured, instruments external.
+#       23-Oct-22       CBL     moved user signals into a separate file
 #
 ######################################################################
 # Machine specific stuff
@@ -29,10 +30,11 @@ LIBS = -L$(HOME)/lib_linux -lKeithley -lmygpib -lutility \
 # Rules to make the object files depend on the sources.
 SRC     = 
 SRCCPP  = main.cpp IVcurve.cpp Instruments.cpp ParamDialog.cpp \
-	ParamPane.cpp IV_Dict.cpp
+	ParamPane.cpp UserSignals.cpp IV_Dict.cpp
 SRCS    = $(SRC) $(SRCCPP)
 
-HEADERS = IVcurve.hh Instruments.hh ParamDialog.hh ParamPane.hh IV_Linkdef.hh
+HEADERS = IVcurve.hh Instruments.hh ParamDialog.hh ParamPane.hh \
+	UserSignals.hh IV_Linkdef.hh
 
 # When we build all, what do we build?
 all:      $(TARGET)

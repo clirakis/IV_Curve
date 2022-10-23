@@ -38,137 +38,21 @@ using namespace std;
 #include "debug.h"
 #include "CLogger.hh"
 #include "IVcurve.hh"
+#include "UserSignals.hh"
 
 // Root specific
 Bool_t rootint = kFALSE;
-static TApplication *theApp;
+TApplication *theApp;
 
 // My variables. 
-const  double        Version   = 1.2;
+const  double        Version   = 1.3;
 static CLogger*      LogPtr;
 
 extern char         *optarg;
 static Int_t        verbose = 0;
-static char         *FileName = NULL;
 static IVCurve      *plotWindow;
 
-/**
-******************************************************************
-*
-* Function Name : Terminate
-*
-* Description : Deal with errors in a clean way!
-*               ALL, and I mean ALL exits are brought 
-*               through here!
-*
-* Inputs : Signal causing termination. 
-*
-* Returns : none
-*
-* Error Conditions : Well, we got an error to get here. 
-*
-*******************************************************************
-*/ 
-static void Terminate (int sig) 
-{
-    static int i=0;
-    char msg[128], tmp[64];
-    time_t now;
-    time(&now);
- 
-    i++;
-    if (i>1) 
-    {
-        _exit(-1);
-    }
 
-    LogPtr->Log("# Program Ends: %s",ctime(&now));
-
-    switch (sig)
-    {
-    case -1: 
-      sprintf( msg, "User abnormal termination");
-      break;
-    case 0:                    // Normal termination
-        sprintf( msg, "Normal program termination.");
-        break;
-    case SIGHUP:
-        sprintf( msg, " Hangup");
-        break;
-    case SIGINT:               // CTRL+C signal 
-        sprintf( msg, " SIGINT ");
-        break;
-    case SIGQUIT:               //QUIT 
-        sprintf( msg, " SIGQUIT ");
-        break;
-    case SIGILL:               // Illegal instruction 
-        sprintf( msg, " SIGILL ");
-        break;
-    case SIGABRT:              // Abnormal termination 
-        sprintf( msg, " SIGABRT ");
-        break;
-    case SIGBUS:               //Bus Error! 
-        sprintf( msg, " SIGBUS ");
-        break;
-    case SIGFPE:               // Floating-point error 
-        sprintf( msg, " SIGFPE ");
-        break;
-    case SIGKILL:               // Kill!!!! 
-        sprintf( msg, " SIGKILL");
-        break;
-    case SIGSEGV:              // Illegal storage access 
-        sprintf( msg, " SIGSEGV ");
-        break;
-    case SIGTERM:              // Termination request 
-        sprintf( msg, " SIGTERM ");
-        break;
-    case SIGSTKFLT:               // Stack fault
-        sprintf( msg, " SIGSTKFLT ");
-        break;
-    case SIGTSTP:               // 
-        sprintf( msg, " SIGTSTP");
-        break;
-    case SIGXCPU:               // 
-        sprintf( msg, " SIGXCPU");
-        break;
-    case SIGXFSZ:               // 
-        sprintf( msg, " SIGXFSZ");
-        break;
-    case SIGSTOP:               // 
-        sprintf( msg, " SIGSTOP ");
-        break;
-    case SIGPWR:               // 
-        sprintf( msg, " SIGPWR ");
-        break;
-    case SIGSYS:               // 
-        sprintf( msg, " SIGSYS ");
-        break;
-    default:
-        sprintf( msg, " Uknown signal type: %d", sig);
-        break;
-    }
-    sprintf ( tmp, " %s %d", LastFile, LastLine);
-    strncat ( msg, tmp, sizeof(msg));
-
-    LogPtr->Log("# %s\n", msg);
-    
-    // User termination here
-
-    free(FileName);
-
-    delete theApp;
-
-    delete LogPtr;
-
-    if (sig == 0)
-    {
-        _exit (0);
-    }
-    else
-    {
-        _exit (-1);
-    }
-}
 /**
  ******************************************************************
  *
@@ -192,7 +76,6 @@ static void Help(void)
     cout << "* curves.                                  *" << endl;
     cout << "* Built on "<< __DATE__ << " " << __TIME__ << "*" << endl;
     cout << "* Available options are :                  *" << endl;
-    cout << "*     -f Filename                          *" << endl;
     cout << "*     -h Help                              *" << endl;
     cout << "*     -v verbose level (integer)           *" << endl;
     cout << "*                                          *" << endl;
@@ -225,13 +108,9 @@ static void ProcessCommandLineArgs(int argc, char **argv)
     SET_DEBUG_STACK;
     do
     {
-        option = getopt(argc, argv, "F:f:hHv:V:");
+        option = getopt(argc, argv, "hHv:V:");
         switch(option)
         {
-	case 'f':
-	case 'F':
-	    FileName = strdup(optarg);
-	    break;
         case 'h':
         case 'H':
             Help();
@@ -273,27 +152,10 @@ static bool Initialize(void)
     LastFile = (char *) __FILE__;
     LastLine = __LINE__;
 
-    signal(SIGHUP , Terminate);   // Hangup.
-    signal(SIGINT , Terminate);   // CTRL+C signal
-    signal(SIGKILL, Terminate);   //
-    signal(SIGQUIT, Terminate);   //
-    signal(SIGILL , Terminate);   // Illegal instruction
-    signal(SIGABRT, Terminate);   // Abnormal termination
-    signal(SIGIOT , Terminate);   //
-    signal(SIGBUS , Terminate);   //
-    signal(SIGFPE , Terminate);   //
-    signal(SIGSEGV, Terminate);   // Illegal storage access
-    signal(SIGTERM, Terminate);   // Termination request
-    signal(SIGSTKFLT, Terminate); //
-    signal(SIGSTOP, Terminate);   //
-    signal(SIGPWR, Terminate);    //
-    signal(SIGSYS, Terminate);    //
+    SetSignals();
 
     LogPtr = new CLogger("IVCurve.log","IVCurve",Version);
     LogPtr->SetVerbose(verbose);
-
-    // User initialization goes here.
-
 
     // User initialization goes here.
     plotWindow = new IVCurve(gClient->GetRoot(), 640, 480);
@@ -334,7 +196,7 @@ int main(int argc, char **argv)
     }
     else
     {
-        theApp = new TApplication("App", &argc, argv);
+       theApp = new TApplication("App", &argc, argv);
     }
     gStyle->SetOptStat(1111);
     gStyle->SetOptFit(1111);

@@ -47,11 +47,11 @@ class IVCurve : public TGMainFrame {
 public:
     IVCurve(const TGWindow *p, UInt_t w = 800, UInt_t h = 400);
     ~IVCurve(void);
+
     void CloseWindow(void);
     void ProcessedEvent(Int_t event, Int_t x, Int_t y, TObject *selected);
     void HandleMenu(Int_t id);
     void HandleToolBar(Int_t id);
-    bool OpenAndParseFile(const char *file);
     void TimeoutProc(void);
 
 private:
@@ -96,27 +96,36 @@ private:
     Instruments*        fInstruments;
     TGPopupMenu*        fMenuInstrument; 
 
+    TTimer*             fTimer;
+
+
 
     // Private functions.
+
     void AddEmbeddedCanvas(UInt_t w, UInt_t h);
     void AddStatusPane(void);
     void CreateStatusBar(void);
     void CreateMenuBar(void);
     void CreateToolBar(void);
-    void DoLoad(void);
+    void FileDialog(bool LoadOrSave);
+    void DoSaveAs(void);
+    bool Load(const char *Filename);
+    bool Save(const char *Filename);
+
     void PlotMe(Int_t);
     void UnZoom(void);
     void Zoom(void);
     void ZoomAxis(TAxis *a);
-    void DoSaveAs(void);
 
     void CheckInstrumentStatus(void);
 
-    TTimer*            fTimer;
+    // For later
+    void FitData(void);
 
     // Open and parse utilities
-    bool CreateGraphObjects();
-    bool CleanGraphObjects();
+    bool CreateGraphObjects(void);
+    bool CleanGraphObjects(void);
     void SetCurrentFileName(const char *File);
+
 };
 #endif

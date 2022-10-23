@@ -67,10 +67,11 @@ using namespace std;
 const char *PrintPrg[]  = {"/usr/bin/lpr","/usr/bin/lp"};
 const char *printName[] = {"zevonlaser","elvis"};
 
-// File types supported for input. 
+// File types supported for save and load. 
 const char *filetypes[] = { 
-    "Log files",   "*.log",
-    "Data files",  "*.dat",
+    "CSV files",               "*.csv",
+    "tab files",               "*.tsv",
+    "space delimited files",   "*.txt",
     "All files",     "*",
     "ROOT files",    "*.root",
     0,               0 };
@@ -90,6 +91,7 @@ enum SVPCommandIdentifiers {
    M_FILE_EXIT=100,
    M_FILE_LOAD,
    M_FILE_SAVE,
+   M_FILE_SAVEAS,
    M_FILE_PRINT,
    M_EDIT_PARAMETERS,
    M_HELP_ABOUT,
@@ -102,7 +104,10 @@ enum SVPCommandIdentifiers {
    M_INST_K230,
 };
 
-// Toolbar icons to be used. 
+/*
+ * Toolbar icons to be used. 
+ * FIXME
+ */
 const char *dialog_xpm_names[] = {
     "stop.png",
     "replay.png",
@@ -382,6 +387,7 @@ void IVCurve::CreateMenuBar()
 
     MenuFile->AddEntry("L&oad"  , M_FILE_LOAD);
     MenuFile->AddEntry("S&ave"  , M_FILE_SAVE);
+    MenuFile->AddEntry("SaveA&s", M_FILE_SAVEAS);
     MenuFile->AddEntry("P&rint" , M_FILE_PRINT);
 
     MenuFile->AddSeparator();
@@ -525,17 +531,19 @@ void IVCurve::HandleToolBar(Int_t id)
     switch (id) 
     {
     case M_FILE_LOAD:
-	DoLoad();
+	FileDialog(kTRUE);
 	tb = fToolBar->GetButton(M_FILE_LOAD);
         tb->SetState(kButtonUp);
 	break;
     case M_START:
 	tb = fToolBar->GetButton(M_START);
         tb->SetState(kButtonUp);
+	fTakeData = kTRUE;
 	break;
     case M_STOP:
 	tb = fToolBar->GetButton(M_STOP);
         tb->SetState(kButtonUp);
+	fTakeData = kFALSE;
 	break;
     case M_ZOOM_PLUS:
 	Zoom();
@@ -646,10 +654,14 @@ void IVCurve::HandleMenu(Int_t id)
 	break;
 
     case M_FILE_LOAD:
-	DoLoad();
+	FileDialog(kTRUE);
 	break;
 
     case M_FILE_SAVE:
+	FileDialog(kFALSE);
+	break;
+
+    case M_FILE_SAVEAS:
 	DoSaveAs();
 	break;
 
@@ -747,35 +759,65 @@ void IVCurve::SetCurrentFileName(const char *File)
 /**
  ******************************************************************
  *
- * Function Name : DoLoad
+ * Function Name : FileDialog
  *
- * Description : Handle the Load menu option by bringing up a file
- *               selection dialog. 
+ * Description : Handle the Load/Save menu option by bringing up a file
+ *               selection dialog.  This is strictly for data load and save
  *
  * Inputs : none
  *
  * Returns : none
  *
- * Error Conditions : 
+ * Error Conditions : none
  * 
- * Unit Tested on: 25-Apr-08
+ * Unit Tested on: 23-Oct-22
  *
  * Unit Tested by: CBL
  *
  *
  *******************************************************************
  */
-void IVCurve::DoLoad()
+void IVCurve::FileDialog(bool LoadOrSave)
 {
     SET_DEBUG_STACK;
-    TGFileInfo fi;
+    TGFileInfo      fi;
+    EFileDialogMode mode;
+
+    if (LoadOrSave)
+    {
+	mode = kFDOpen;
+    }
+    else
+    {
+	mode = kFDSave;
+    }
 
     fi.fFileTypes = filetypes;
     fi.fIniDir    = StrDup(fLastDir->Data());
 
-    new TGFileDialog( gClient->GetRoot(), 0, kFDOpen, &fi);
-    *fLastDir = fi.fIniDir;
-    OpenAndParseFile(fi.fFilename);
+    new TGFileDialog( gClient->GetRoot(), 0, mode, &fi);
+
+    /* Looked at the code. if cancel is hit, this is NULL */
+    if (fi.fFilename != NULL)
+    {
+	/*
+	 * Store the name of the selected directory such that 
+	 * the next time we open a file it will start in the 
+	 * same directory. 
+	 */
+	delete fLastDir;
+	fLastDir = new TString(fi.fIniDir);
+
+	if (LoadOrSave)
+	{
+	    Load(fi.fFilename);
+	}
+	else
+	{
+	    Save(fi.fFilename);
+	}
+    }
+
     SET_DEBUG_STACK;
 }
 
@@ -802,9 +844,16 @@ void IVCurve::DoLoad()
 void IVCurve::PlotMe(Int_t Index)
 {
     SET_DEBUG_STACK;
-    cout << "PlotME" << endl;
+
     gPad->Clear();
     fGraph->Draw("ALP");
+    // SetTitle(char) FIXME - Add in a dialog to get info on what is under test
+    //
+    TH1 *f = fGraph->GetHistogram();
+    f->SetXTitle("Voltage");
+    f->SetYTitle("Current (A)");
+    f->SetLabelSize(0.03, "X");
+    f->SetLabelSize(0.03, "Y");
     gPad->Update();
     SET_DEBUG_STACK;
 }
@@ -812,24 +861,24 @@ void IVCurve::PlotMe(Int_t Index)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : CloseWindow
  *
- * Description :
+ * Description : Registered callback for closing window. 
  *
- * Inputs :
+ * Inputs : none
  *
- * Returns :
+ * Returns : none
  *
- * Error Conditions :
+ * Error Conditions : none
  * 
- * Unit Tested on: 
+ * Unit Tested on: 23-Oct-22
  *
  * Unit Tested by: CBL
  *
  *
  *******************************************************************
  */
-void IVCurve::CloseWindow()
+void IVCurve::CloseWindow(void)
 {
     SET_DEBUG_STACK;
     if (fTimer)
@@ -846,7 +895,7 @@ void IVCurve::CloseWindow()
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : ProcessedEvent
  *
  * Description :
  *
@@ -986,7 +1035,7 @@ void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py,
  *
  *******************************************************************
  */
-void IVCurve::UnZoom()
+void IVCurve::UnZoom(void)
 {
     SET_DEBUG_STACK;
     TH1 *h = ftmg->GetHistogram();
@@ -1088,6 +1137,110 @@ void IVCurve::Zoom(void)
 /**
  ******************************************************************
  *
+ * Function Name : Load
+ *
+ * Description : Load a previously generated file. 
+ *
+ * Inputs : filename to load
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool IVCurve::Load(const char *file)
+{
+    SET_DEBUG_STACK;
+
+
+    if (strstr(file, "root") != NULL)
+    {
+	// Open a file for save, use the root file protocol. 
+	TFile myout(file, "NEW", "IVCurve Data");
+
+	myout.Close();
+    }
+    else if(strstr(file, "csv") != NULL)
+    {
+	delete fGraph;
+	fGraph = new TGraph(file, "%lg,%lg");
+    }
+    else if((strstr(file, "tsv") != NULL) ||
+	    (strstr(file, "txt") != NULL))
+    {
+	// In this case delete and recreate the load. 
+	delete fGraph;
+	fGraph = new TGraph(file); 
+    }
+
+    // Someday add in the ability to insert multiple files.
+    SET_DEBUG_STACK;
+    return true;
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : Save
+ *
+ * Description : Save data to file
+ *
+ * Inputs : filename to save
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool IVCurve::Save(const char *file)
+{
+    SET_DEBUG_STACK;
+
+    // Look at the suffix and determine how we want to store. 
+    if (strstr(file, "root") != NULL)
+    {
+	// Open a file for save, use the root file protocol. 
+	TFile myout(file, "NEW", "IVCurve Data");
+
+	myout.Close();
+    }
+    else if((strstr(file, "csv") != NULL) ||
+	    (strstr(file, "tsv") != NULL) ||
+	    (strstr(file, "txt") != NULL))
+    {
+	// This format is really weird. 
+	//fGraph->SaveAs(file);
+	ofstream myout(file);
+	if(myout.is_open())
+	{
+	    Int_t N = fGraph->GetN();
+	    Double_t x, y;
+	    for(Int_t i=0;i<N;i++)
+	    {
+		fGraph->GetPoint( i, x, y);
+		myout << x << "," << y << endl;
+	    }
+	    myout.close();
+	}
+    }
+
+    SET_DEBUG_STACK;
+    return kTRUE;
+}
+/**
+ ******************************************************************
+ *
  * Function Name :
  *
  * Description :
@@ -1105,271 +1258,7 @@ void IVCurve::Zoom(void)
  *
  *******************************************************************
  */
-bool IVCurve::OpenAndParseFile(const char *file)
-{
-    SET_DEBUG_STACK;
-#if 0
-    char       msg[512], line[1024], *p;
-    ifstream   *file_in;
-    TObjString *title;
-    Int_t      i, NLines, LineNumber;
-    TGraph     *tg;
-    TList      *graphs;
-    Double_t   x, y;
-    TH1F       *hist;
-    TList      *TraceTitles;
-    TString    *col1Title;
-    Int_t      NColumns;    // Number of columns of data. 
 
-    if (file != NULL)
-    {
-	SetCurrentFileName(file);
-    }
-    else
-    {
-	cout <<"Reloading file. " << endl;
-    }
-
-    file_in = new ifstream( fCurrentFile->Data(), ifstream::in );
-    if (file_in->fail())
-    {
-	sprintf (msg, "File not found: %s", fCurrentFile->Data());
-	new TGMsgBox( gClient->GetRoot(), NULL, "Error", 
-		      msg, kMBIconExclamation);
-	fStatusBar->SetText( "NONE", 0);
-    }
-    else
-    {
-	if (verbose > 0) 
-	{
-	    cout << "Open and Parse File" << endl;
-	}
-	/* Clean up on reload or new load */
-	CleanGraphObjects();
-	CreateGraphObjects();
-	TraceTitles = new TList();
-	NColumns = 0;
-	NLines   = 0;
-	/*
-	 * Find the # sign and parse out the trace data
-	 * These should be used for the individual graphs and the 
-	 * legend.
-	 */
-	memset( line, 0, sizeof(line));
-	file_in->getline(line, sizeof(line));
-	if (line[0] == '#')
-	{
-	    /*
-	     * Get rid of the pound sign that says this is a comment line.
-	     */
-	    line[0] = ' ';
-	    p = strtok(line, " ");
-	    if (p!= NULL) 
-	    {
-		NColumns++;                 // Count up the number of columns. 
-		// this should be time. 
-		col1Title = new TString(p); // Usually the time axis.
-		if (verbose>1)
-		{
-		    cout << " Column 1 title " << *col1Title << endl;
-		}
-	    }
-	    // loop to find rest of the titles. 
-	    while ( (p=strtok( NULL, " ")) != NULL)
-	    {
-		if(verbose>0) 
-		{
-		    cout << "Found " << p << endl;
-		}
-		TraceTitles->Add(new TObjString(p));
-		NColumns++;
-	    }
-	    // Sometimes gnucap puts out only one title. 
-	    // Let's fix that
-	    if (NColumns == 1)
-	    {
-		TraceTitles->Add(new TObjString(*col1Title));
-		*col1Title = "V";
-		NColumns++;
-	    }
-	}
-	else
-	{
-	    // This should be a failure.
-	    cout << " Found no comment line" << endl;
-	}
-	if(verbose>0) 
-	{
-	    cout << "NColumns = " << NColumns << endl;
-	}
-
-	/* 
-	 * Now loop and read the actual data. 
-	 * Allocate the space for the data points. 
-	 * and create the tgraphs. 
-	 */
-	NLines = 0;
-	while (!file_in->eof())
-	{
-	    file_in->getline(line, sizeof(line));
-	    if (strlen(line)>2)
-	    {
-		NLines++;
-	    }
-	}
-	NLines--; // Remove title line.
-	if(verbose>0) 
-	{
-	    cout << "NLines = " << NLines << endl;
-	}
-	/*
-	 * Time to create the TGraphs. 
-	 */
-	i = 1;
-	{
-	    /*
-	     * Loop over all the trace titles. There
-	     * should be NColumn of these. Each representing
-	     * a single trace variable. 
-	     */
-	    TListIter next(TraceTitles);
-	    while((title = (TObjString *) next()))
-	    {
-		tg = new TGraph(NLines);
-		tg->SetTitle( title->GetString().Data());
-		tg->SetMarkerColor(i);
-		tg->SetLineColor(i);
-		tg->SetMarkerStyle(20);
-		// The x axis most likely will only be time. 
-		tg->GetXaxis()->SetTitle(col1Title->Data());
-		// This could be any test point in the circuit.
-		tg->GetYaxis()->SetTitle(title->GetString().Data()); 
-
-		// Add it to the multigraph list. 
-		ftmg->Add(tg);
-
-		// Add to the legend box.
-		fLegend->AddEntry (tg, title->GetString().Data(),"L");
-
-		if(verbose>0) 
-		{
-		    cout << "Added tgraph " << i << endl;
-		}
-		i++;
-	    }
-	}
-	/* 
-	 * Cleanup from load
-	 * the TGraphs now take care of the title.
-	 */
-	if (TraceTitles != NULL)
-	{
-	    TListIter next(TraceTitles);
-	    while((title = (TObjString *) next()))
-	    {
-		delete title;
-	    }
-	    delete TraceTitles;
-	}
-
-	if (verbose > 0)
-	{
-	    cout <<"Rewind File " << endl;
-	}
-	// Seems like the best way to rewind given that it is a text file. 
-	file_in->close();
-	file_in->open( fCurrentFile->Data());
-	// Skip first line
-	file_in->getline(line, sizeof(line));
-
-       	if(verbose>0) 
-	{
-	    cout << " Got first line " << line  
-		 << " Number columns " << NColumns
-		 << endl;
-	}
-
-	LineNumber = 0;
-	/* Get a pointer to the list of graphs */
-	graphs = ftmg->GetListOfGraphs();
-
-	while (!file_in->eof())
-	{
-	    memset( line, 0, sizeof(line));
-	    file_in->getline(line, sizeof(line));
-	    if(verbose>1) 
-	    {
-		cout << LineNumber<< " Get Line:" << line << " | ";
-	    }
-	    p = strtok( line, " ");
-	    if (p != NULL)
-	    {
-		/*
-		 * For DC series this is not time but really the
-		 * x axis
-		 */
-		x = atof(p);
-	    
-		if(verbose>1) 
-		{
-		    cout << " X = " << x;
-		}
-	    }
-	    /* Parse all the data into correct format */
-	    for (i=0; i<NColumns-1; i++)
-	    {
-		p = strtok( NULL, " ");
-		if (p != NULL)
-		{
-		    //cout << "P = " << p << endl;
-		    /* Get specific graph to fill */
-		    tg = (TGraph *) graphs->At(i);
-		    if (tg != NULL)
-		    {
-			y = atof(p);
-			tg->SetPoint(LineNumber, x, y);
-			if(verbose>1) 
-			{
-			    cout << " Y = " << y << endl;
-			}
-		    }
-		}
-	    }
-	    LineNumber++;
-	}
-
-	file_in->close();
-	delete file_in;
-
-	if(verbose>1) 
-	{
-	    cout << endl << " Drawing all plots now " << endl;
-	}
-
-	ftmg->Draw("ALP");
-
-	hist = ftmg->GetHistogram();
-	if (hist)
-	{
-	    hist->SetTitle("Spice data plot");
-	    hist->GetXaxis()->SetTitle(col1Title->Data());
-	    hist->GetYaxis()->SetTitle("Volts"); 
-	    //hist->GetYaxis()->SetTitle(col2Title->Data()); 
-	}
-	fLegend->Draw();
-	fLegend->SetTextFont(2);
-	fLegend->SetTextSize(0.02);
-
-	if (col1Title != NULL)
-	{
-	    delete col1Title;
-	}
-	gPad->Update();
-    }
-#endif
-    return true;
-    SET_DEBUG_STACK;
-}
 bool IVCurve::CreateGraphObjects(void)
 {
     SET_DEBUG_STACK;
@@ -1380,7 +1269,27 @@ bool IVCurve::CreateGraphObjects(void)
     SET_DEBUG_STACK;
     return true;
 }
-bool IVCurve::CleanGraphObjects()
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool IVCurve::CleanGraphObjects(void)
 {
     SET_DEBUG_STACK;
     gPad->Clear();
@@ -1402,10 +1311,10 @@ bool IVCurve::CleanGraphObjects()
 /**
  ******************************************************************
  *
- * Function Name : DoSaveAs
+ * Function Name : DoSave
  *
  * Description : Handle the Save menu option by bringing up a file
- *               selection dialog. 
+ *               selection dialog. FIXME
  *
  * Inputs : none
  *
@@ -1420,7 +1329,7 @@ bool IVCurve::CleanGraphObjects()
  *
  *******************************************************************
  */
-void IVCurve::DoSaveAs()
+void IVCurve::DoSaveAs(void)
 {
     SET_DEBUG_STACK;
 
@@ -1447,7 +1356,7 @@ void IVCurve::DoSaveAs()
 /**
  ******************************************************************
  *
- * Function Name : 
+ * Function Name : CheckInstrumentStatus
  *
  * Description : 
  *               
@@ -1530,3 +1439,47 @@ void IVCurve::TimeoutProc(void)
     cout << "Timeout" << endl;
     SET_DEBUG_STACK;
 }
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void IVCurve::FitData(void)
+{
+    SET_DEBUG_STACK;
+}
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
