@@ -104,9 +104,14 @@ public:
      */
     bool Keithley230_OK(void) const {return (hgpib230!=NULL);};
 
+    /*! Access the This pointer. */
+    static Instruments* GetThis(void) {return fInstruments;};
+
 private:
     Keithley196*  hgpib196;
     Keithley2x0*  hgpib230;
 
+    /*! The static 'this' pointer. */
+    static Instruments *fInstruments;
 };
 #endif

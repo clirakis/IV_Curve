@@ -32,11 +32,14 @@ using namespace std;
 #include "CLogger.hh"
 #include "Instruments.hh"
 
+// Starting values
 const double kIncrement =  0.1;    // Volts
 const double kMedium    =  0.05;   // Volts
 const double kFine      =  0.01;   // Volts
-const double kStart     = -1.0;   // Volts
-const double kEnd       =  1.0;   // Volts
+const double kStart     = -1.0;    // Volts
+const double kEnd       =  1.0;    // Volts
+
+Instruments* Instruments::fInstruments;
 
 /**
  ******************************************************************

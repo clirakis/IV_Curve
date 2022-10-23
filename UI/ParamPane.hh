@@ -23,49 +23,36 @@
 #  include <TGFrame.h>
 
 class TList;
-class NavPoint;
 class TGNumberEntry;
 class TGLabel;
 class TGTextEntry;
-class TGPictureButton;
-class TListIter;
 
-class ParamPane : public TGVerticalFrame {
-
+class ParamPane : public TGVerticalFrame 
+{
 public:
-    /*! A pane for editing a NavPointList. 
-     * If we added something, assume we added it at the end of the 
-     * list prior to call. 
-     * The frame is the parent window to hang off of. 
-     * The TList is the list of points to operate on. 
-     * EnterOnly, if true goes to the end of the list and edits 
-     * that one point alone. 
+    /*! 
+     * Parameter setup for running an I-V curve. 
      */
     ParamPane(TGCompositeFrame*);
     ~ParamPane();
 
+    Double_t GetStart(void);
+
+    Double_t GetStop(void);
+
+    Double_t GetStep(void);
+
+    Double_t GetFine(void);
+
     // slots
-    void Next(void);
-    void Prev(void);
-    void DoOK(void);
-    void ApplyEdits(void);
     ClassDef(ParamPane, 0);
 
 private:
     // private functions
-    void FillFields(NavPoint *);
+    void FillFields( Double_t Start, Double_t Stop, Double_t Step, Double_t Fine);
     void CreateFields(void);
-    void CreateButtons(void);
-    Double_t* DegMinSec(Double_t in);
 
-    TList*          fPoints;
-    Int_t           fIndex;
-    NavPoint*       fCurrent;
-    TGLabel*        fCount;
-    TGNumberEntry   *fLat[3], *fLon[3], *fZ;
-    TGTextEntry     *fTitle;
-    TGPictureButton *fNext,*fPrev;
-    Bool_t          fEditOnly;
-    Double_t        fZWork[3];  /* Workspace */
+    TGNumberEntry   *fStart, *fStop, *fStep, *fFine;
+
 };
 #endif

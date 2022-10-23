@@ -189,8 +189,9 @@ void ParamDlg::CloseWindow()
  *
  *******************************************************************
  */
-void ParamDlg::DoOK()
+void ParamDlg::DoOK(void)
 {
+    // Get the data an set the instruments up. 
 
     SendCloseMessage();
 }

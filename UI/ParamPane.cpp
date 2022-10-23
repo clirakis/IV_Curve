@@ -9,6 +9,8 @@
  * Restrictions/Limitations :
  *
  * Change Descriptions :
+ * Change this pane to reflect the input parameters for an I-V curve
+ * 23-Oct-22
  *
  * Classification : Unclassified
  *
@@ -37,6 +39,12 @@ using namespace std;
 #include "ParamPane.hh"
 #include "debug.h"
 
+enum EntryEnum {
+    M_START,
+    M_STOP,
+    M_STEP,
+    M_FINE,
+};
 /**
  ******************************************************************
  *
@@ -46,7 +54,6 @@ using namespace std;
  * points, these can be events or waypoints. 
  *
  * Inputs : p - the parent window. 
- *          l - the list to display. 
  *
  * Returns :
  *
@@ -64,15 +71,12 @@ ParamPane::ParamPane(TGCompositeFrame* p) : TGVerticalFrame(p,20,20)
     SET_DEBUG_STACK;
 
     CreateFields();
-    if (!fEditOnly)
-    {
-	CreateButtons();
-    }
     Resize();
     TGLayoutHints *TL =  
-	new TGLayoutHints(kLHintsTop | kLHintsExpandX,
+	new TGLayoutHints(kLHintsTop | kLHintsExpandX | kLHintsExpandY,
 			  2, 2, 2, 2);
     p->AddFrame(this, TL);
+    p->Resize();
     SET_DEBUG_STACK;
 }
 /**
@@ -97,16 +101,8 @@ ParamPane::ParamPane(TGCompositeFrame* p) : TGVerticalFrame(p,20,20)
  */
 ParamPane::~ParamPane(void)
 {
-    Int_t i;
-    delete fCount;
-    for (i=0;i<3;i++)
-    {
-	delete fLat[i];
-	delete fLon[i];
-    }
-    delete fTitle;
-    delete fNext;
-    delete fPrev;
+
+
 }
 /**
  ******************************************************************
@@ -131,133 +127,64 @@ ParamPane::~ParamPane(void)
  */
 void ParamPane::CreateFields(void)
 {
-    const UInt_t W1 = 40;
-    const UInt_t W2 = 80;
-    const UInt_t H  = 20;
+    const UInt_t W = 80;
+    const UInt_t H = 20;
 
     TGLabel *label;
-    TGLayoutHints *tl =  new TGLayoutHints(kLHintsTop | kLHintsExpandX,
-					   2, 2, 2, 2);
-    TGGroupFrame  *gf = new TGGroupFrame( this, "Events");
+    TGLayoutHints *tl = new TGLayoutHints(kLHintsTop | kLHintsExpandX |
+					  kLHintsExpandY, 2, 2, 2, 2);
+    TGGroupFrame  *gf = new TGGroupFrame( this, "Setup");
+
     // Rows, Columns. 
-    gf->SetLayoutManager(new TGMatrixLayout(gf, 4, 4, 2, 2));
+    gf->SetLayoutManager(new TGMatrixLayout(gf, 4, 2, 2, 2));
     AddFrame( gf, tl);
 
-    // Column 0
-    label = new TGLabel( gf, new TGHotString("Entry"));
+    // Row 0 ==================================================
+    label = new TGLabel( gf, new TGHotString("Start (V)"));
     gf->AddFrame(label);
-    fCount = new TGLabel( gf, new TGHotString("        "));
-    gf->AddFrame(fCount);
 
-    label = new TGLabel( gf, new TGHotString("Title"));
+    fStart = new TGNumberEntry( gf,-1.0, 3, M_START, 
+				TGNumberFormat::kNESRealThree, 
+				TGNumberFormat::kNEAAnyNumber, 
+				TGNumberFormat::kNELLimitMinMax, -10.0, 10.0);
+    fStart->Resize( W, H);
+    gf->AddFrame(fStart);
+
+    // Row 1=====================================================
+    label = new TGLabel( gf, new TGHotString("Stop (V)"));
     gf->AddFrame(label);
-    fTitle = new TGTextEntry( gf, "                   ");
-    gf->AddFrame(fTitle);
 
-    // ===========================================================
-    label = new TGLabel( gf, new TGHotString("Latitude"));
+    fStop = new TGNumberEntry( gf, 1.0, 3, M_STOP, 
+			       TGNumberFormat::kNESRealThree, 
+			       TGNumberFormat::kNEAAnyNumber, 
+			       TGNumberFormat::kNELLimitMinMax, -10.0, 10.0);
+    fStop->Resize( W, H);
+    gf->AddFrame(fStop);
+
+
+    // Row 2=====================================================
+    label = new TGLabel( gf, new TGHotString("Regular Step(V)"));
     gf->AddFrame(label);
-    fLat[0] = new TGNumberEntry( gf, 0.0, 2, 1, TGNumberFormat::kNESInteger, 
-			      TGNumberFormat::kNEAAnyNumber, 
-			      TGNumberFormat::kNELLimitMinMax, -90.0, 90.0);
-    fLat[0]->Resize( W1, H);
-    gf->AddFrame(fLat[0]);
+    fStep = new TGNumberEntry( gf, 0.1, 3, M_STEP, 
+			       TGNumberFormat::kNESRealThree, 
+			       TGNumberFormat::kNEANonNegative, 
+			       TGNumberFormat::kNELLimitMinMax, 0.0, 1.0);
+    fStep->Resize( W, H);
+    gf->AddFrame(fStep);
 
-    fLat[1] = new TGNumberEntry( gf, 0.0, 2, 1, TGNumberFormat::kNESInteger, 
-			      TGNumberFormat::kNEANonNegative, 
-			      TGNumberFormat::kNELLimitMinMax, 0.0, 60.0);
-    fLat[1]->Resize( W1, H);
-    gf->AddFrame(fLat[1]);
 
-    fLat[2] = new TGNumberEntry( gf, 0.0, 5, 1, TGNumberFormat::kNESReal, 
-			      TGNumberFormat::kNEANonNegative, 
-			      TGNumberFormat::kNELLimitMinMax, 0.0, 60.0);
-    fLat[2]->Resize( W2, H);
-    gf->AddFrame(fLat[2]);
-
-    // ===========================================================
-    label = new TGLabel( gf, new TGHotString("Longitude"));
+    // Row 3=====================================================
+    label = new TGLabel( gf, new TGHotString("Fine Step (V)"));
     gf->AddFrame(label);
-    fLon[0] = new TGNumberEntry( gf, 0.0, 3, 1, TGNumberFormat::kNESInteger, 
-			      TGNumberFormat::kNEAAnyNumber, 
-			      TGNumberFormat::kNELLimitMinMax, -180.0, 180.0);
-    fLon[0]->Resize( W1, H);
-    gf->AddFrame(fLon[0]);
 
-    fLon[1] = new TGNumberEntry( gf, 0.0, 2, 1, TGNumberFormat::kNESInteger, 
-			      TGNumberFormat::kNEANonNegative, 
-			      TGNumberFormat::kNELLimitMinMax, 0.0, 60.0);
-    fLon[1]->Resize( W1, H);
-    gf->AddFrame(fLon[1]);
+    fFine = new TGNumberEntry( gf, 0.01, 3, M_FINE, 
+			       TGNumberFormat::kNESRealThree, 
+			       TGNumberFormat::kNEANonNegative, 
+			       TGNumberFormat::kNELLimitMinMax, 0.0, 0.1);
+    fFine->Resize( W, H);
+    gf->AddFrame(fFine);
 
-    fLon[2] = new TGNumberEntry( gf, 0.0, 5, 1, TGNumberFormat::kNESReal, 
-			      TGNumberFormat::kNEANonNegative, 
-			      TGNumberFormat::kNELLimitMinMax, 0.0, 60.0);
-    fLon[2]->Resize( W2, H);
-    gf->AddFrame(fLon[2]);
-
-    // ===========================================================
-    label = new TGLabel( gf, new TGHotString("Z"));
-    gf->AddFrame(label);
-    
-    fZ = new TGNumberEntry( gf, 0.0, 8, 3, TGNumberFormat::kNESReal, 
-			    TGNumberFormat::kNEAAnyNumber, 
-			    TGNumberFormat::kNELLimitMinMax, -1000.0, 1000.0);
-    gf->Resize();
-    tl =  new TGLayoutHints(kLHintsTop | kLHintsExpandX | kLHintsExpandY,
-			    2, 2, 2, 2);
-    gf->AddFrame(fZ, tl);
-
-    // Fill the fields
-//    FillFields(fCurrent);
-    TGTextButton *tb = new TGTextButton(this, new TGHotString("Apply Edits"));
-    tb->Connect( "Clicked()", "ParamPane", this, "ApplyEdits()");
-
-    this->AddFrame( tb, tl);
-}
-
-/**
- ******************************************************************
- *
- * Function Name :
- *
- * Description :
- *
- * Inputs :
- *
- * Returns :
- *
- * Error Conditions :
- * 
- * Unit Tested on: 
- *
- * Unit Tested by: CBL
- *
- *
- *******************************************************************
- */
-void ParamPane::CreateButtons(void)
-{
-    // Make a frame to group these in. 
-    TGGroupFrame  *gf = new TGGroupFrame( this, "Select", kHorizontalFrame);
-    TGLayoutHints *L1 = new TGLayoutHints(kLHintsTop|kLHintsRight
-                                          |kLHintsExpandX,
-					  2, 2, 2, 2);
-
-    fNext = new TGPictureButton(gf, "arrow_right.xpm");
-    fNext->Connect("Clicked()","ParamPane", this, "Next()");
-    gf->AddFrame(fNext, L1);
-    fNext->SetEnabled(kFALSE);
-
-    fPrev = new TGPictureButton(gf, "arrow_left.xpm");
-    fPrev->Connect("Clicked()","ParamPane", this, "Prev()");
-    gf->AddFrame(fPrev, L1);
-    fPrev->SetEnabled(kFALSE);
-
-    AddFrame(gf, L1);
-
-    // Setup any conditionals. 
-    fNext->SetEnabled(kTRUE);
+    this->AddFrame( gf, tl);
 }
 
 /**
@@ -280,137 +207,16 @@ void ParamPane::CreateButtons(void)
  *
  *******************************************************************
  */
-void ParamPane::Prev(void)
+void ParamPane::FillFields(Double_t Start, Double_t Stop, Double_t Step, Double_t Fine)
 {
     SET_DEBUG_STACK;
-    fIndex--;
-#if 0
-    if (fIndex <0)
-    {
-	fIndex = fPoints->GetSize()-1;
-    }
-    fCurrent = (NavPoint *) fPoints->At(fIndex);
-    FillFields(fCurrent);
-#endif
-    SET_DEBUG_STACK;
-}
-/**
- ******************************************************************
- *
- * Function Name : 
- *
- * Description : 
- *
- * Inputs : none
- *
- * Returns : None
- *
- * Error Conditions :
- *
- * Unit Tested on:
- *
- * Unit Tested by:
- *
- *
- *******************************************************************
- */
-void ParamPane::Next(void)
-{
-    SET_DEBUG_STACK;
-    fIndex++;
-#if 0
-    if (fIndex >= fPoints->GetSize())
-    {
-	fIndex = 0;
-    }
-    fCurrent = (NavPoint *) fPoints->At(fIndex);
-    FillFields(fCurrent);
-#endif
-    SET_DEBUG_STACK;
-}
 
-/**
- ******************************************************************
- *
- * Function Name : 
- *
- * Description : 
- *
- * Inputs : none
- *
- * Returns : None
- *
- * Error Conditions :
- *
- * Unit Tested on:
- *
- * Unit Tested by:
- *
- *
- *******************************************************************
- */
-void ParamPane::FillFields(NavPoint *e)
-{
+    fStart->SetNumber(Start);
+    fStop->SetNumber(Stop);
+    fStep->SetNumber(Step);
+    fFine->SetNumber(Fine);
+
     SET_DEBUG_STACK;
-    Char_t   *s;
-    Double_t *Z;
-#if 0
-    /* Check to see that the event is not NULL. */
-    if (e)
-    {
-	/* Set the text field with the unique ID. */
-	fCount->SetText(e->GetUniqueID());
-	s = (Char_t *) e->GetName();
-	if (s)
-	{
-	    fTitle->SetText(s);
-	}
-	else
-	{
-	    fTitle->SetText("                   ");
-	}
-	//cout.precision(8);
-	//cout <<"Fill fields:" << e->GetY() << endl;
-
-	/* Latitude */
-	Z = DegMinSec(e->Y());
-	fLat[0]->SetNumber(Z[0]);	
-	fLat[1]->SetNumber(Z[1]);	
-	fLat[2]->SetNumber(Z[2]);	
-
-	Z = DegMinSec(e->X());
-	fLon[0]->SetNumber(Z[0]);
-	fLon[1]->SetNumber(Z[1]);
-	fLon[2]->SetNumber(Z[2]);
-
-	fZ->SetNumber(e->Z());
-    }
-#endif
-    SET_DEBUG_STACK;
-}
-/**
- ******************************************************************
- *
- * Function Name : 
- *
- * Description : 
- *
- * Inputs : none
- *
- * Returns : None
- *
- * Error Conditions :
- *
- * Unit Tested on:
- *
- * Unit Tested by:
- *
- *
- *******************************************************************
- */
-void ParamPane::DoOK(void)
-{
-    ApplyEdits();
 }
 /**
  ******************************************************************
@@ -432,9 +238,83 @@ void ParamPane::DoOK(void)
  *
  *******************************************************************
  */
-void ParamPane::ApplyEdits(void)
+Double_t ParamPane::GetStart(void)
 {
     SET_DEBUG_STACK;
-    // Check all the fields. 
+    return fStart->GetNumber();
+}
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+Double_t ParamPane::GetStop(void)
+{
     SET_DEBUG_STACK;
+    return fStop->GetNumber();
+}
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+Double_t ParamPane::GetStep(void)
+{
+    SET_DEBUG_STACK;
+    return fStep->GetNumber();
+}
+/**
+ ******************************************************************
+ *
+ * Function Name :
+ *
+ * Description :
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+Double_t ParamPane::GetFine(void)
+{
+    SET_DEBUG_STACK;
+    return fFine->GetNumber();
 }
