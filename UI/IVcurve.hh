@@ -36,6 +36,8 @@ class TGLabel;
 class TColor;
 class Instruments;
 class TGPopupMenu;
+class TGraph;
+class TTimer;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -50,6 +52,7 @@ public:
     void HandleMenu(Int_t id);
     void HandleToolBar(Int_t id);
     bool OpenAndParseFile(const char *file);
+    void TimeoutProc(void);
 
 private:
     TRootEmbeddedCanvas *fEmbeddedCanvas;
@@ -70,6 +73,10 @@ private:
      */
     TMultiGraph         *ftmg;
     TLegend             *fLegend;
+    // Plotting
+    TGraph*             fGraph;
+
+    Bool_t              fTakeData;
 
     // Things necessary for rubber band zoom.
     Bool_t              SelectOrZoom;   // True if in Zoom mode.
@@ -89,6 +96,7 @@ private:
     Instruments*        fInstruments;
     TGPopupMenu*        fMenuInstrument; 
 
+
     // Private functions.
     void AddEmbeddedCanvas(UInt_t w, UInt_t h);
     void AddStatusPane(void);
@@ -103,6 +111,8 @@ private:
     void DoSaveAs(void);
 
     void CheckInstrumentStatus(void);
+
+    TTimer*            fTimer;
 
     // Open and parse utilities
     bool CreateGraphObjects();

@@ -54,11 +54,13 @@ using namespace std;
 #include <TObjString.h>
 #include <TGLabel.h>
 #include <TColor.h>
+#include <TGraph.h>
 
 // Local Includes
 #include "debug.h"
 #include "IVcurve.hh"
 #include "Instruments.hh"
+#include "CLogger.hh"
 #include "ParamDialog.hh"
 
 // Setup print queues. Way out of date!
@@ -86,37 +88,44 @@ static const char *SPSaveTypes[] = {
  */
 enum SVPCommandIdentifiers {
    M_FILE_EXIT=100,
-   M_FILE_OPEN,
+   M_FILE_LOAD,
+   M_FILE_SAVE,
    M_FILE_PRINT,
    M_EDIT_PARAMETERS,
    M_HELP_ABOUT,
    M_ZOOM_PLUS,
    M_ZOOM_MINUS,
    M_ZOOM_SELECTED,
-   M_RELOAD,
-   M_FILE_SAVEAS,
+   M_START,
+   M_STOP,
    M_INST_K196,
    M_INST_K230,
 };
 
-// Toolbar stuff
+// Toolbar icons to be used. 
 const char *dialog_xpm_names[] = {
-    "bld_open.png",
-    "stop_t.xpm",
-    "profile_t.xpm",
-    "tb_refresh.xpm",
+    "stop.png",
+    "replay.png",
+    "bld_save.png",
+    "bld_plus.png",
+    "bld_new.png",
+    "selection_t.xpm",
     0
 };
 
 
-// ToolBarData fields.
-// pixmap TipText stay_down ID TGButton
+/* 
+ * ToolBarData fields.
+ * pixmap, TipText, stay_down, ID, TGButton
+ *
+ */
 ToolBarData_t toolbar_data[] = {
-  { "",     "Load file",    kFALSE,     M_FILE_OPEN, NULL },
-  { "", "Zoom Selected",     kTRUE,     M_ZOOM_PLUS, NULL },
+  { "",          "Stop",    kFALSE,          M_STOP, NULL },
+  { "",           "Run",    kFALSE,         M_START, NULL },
+  { "",          "Save",     kTRUE,     M_FILE_SAVE, NULL },
+  { "",          "Zoom",     kTRUE,     M_ZOOM_PLUS, NULL },
   { "",        "UnZoom",         0,    M_ZOOM_MINUS, NULL },
   { "", "Zoom Selected",         0, M_ZOOM_SELECTED, NULL },
-  { "",        "Reload",     kTRUE,        M_RELOAD, NULL },
   { "",            NULL,         0,               0, NULL }
 };
 
@@ -174,10 +183,20 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     fCurrentFile = 0;
     fLastDir     = new TString(".");
 
+    fGraph       = NULL;
     ftmg         = NULL;
     fLegend      = NULL;
     fZoomLevel   = 2;
+    fTakeData    = kFALSE;
 
+    CreateGraphObjects();
+
+    // Last thing setup a timeout to run the process. 
+    fTimer = new TTimer();
+    // Set it up to call PlotTimeoutProcedure once per second.
+    fTimer->Connect("Timeout()", "IVCurve", this, "TimeoutProc()");
+    CLogger::GetThis()->LogData("# IVcurve Timeout started.\n");
+    fTimer->Start(500, kFALSE);
 
     SET_DEBUG_STACK;
 }
@@ -210,6 +229,7 @@ IVCurve::~IVCurve()
     }
     delete fLastDir;
     delete fInstruments;
+    delete fGraph;
     SET_DEBUG_STACK;
 }
 /**
@@ -360,8 +380,8 @@ void IVCurve::CreateMenuBar()
     // ---------------------------------------------------------
     MenuFile = new TGPopupMenu(gClient->GetRoot());
 
-    MenuFile->AddEntry("O&pen"  , M_FILE_OPEN);
-    MenuFile->AddEntry("SaveA&s", M_FILE_SAVEAS);
+    MenuFile->AddEntry("L&oad"  , M_FILE_LOAD);
+    MenuFile->AddEntry("S&ave"  , M_FILE_SAVE);
     MenuFile->AddEntry("P&rint" , M_FILE_PRINT);
 
     MenuFile->AddSeparator();
@@ -504,9 +524,17 @@ void IVCurve::HandleToolBar(Int_t id)
 
     switch (id) 
     {
-    case M_FILE_OPEN:
+    case M_FILE_LOAD:
 	DoLoad();
-	tb = fToolBar->GetButton(M_FILE_OPEN);
+	tb = fToolBar->GetButton(M_FILE_LOAD);
+        tb->SetState(kButtonUp);
+	break;
+    case M_START:
+	tb = fToolBar->GetButton(M_START);
+        tb->SetState(kButtonUp);
+	break;
+    case M_STOP:
+	tb = fToolBar->GetButton(M_STOP);
         tb->SetState(kButtonUp);
 	break;
     case M_ZOOM_PLUS:
@@ -523,11 +551,6 @@ void IVCurve::HandleToolBar(Int_t id)
 	c1 = fEmbeddedCanvas->GetCanvas();
 	c1->SetEditable(kFALSE);
 	PlotState = PLOT_STATE_ZOOM;
-	break;
-    case M_RELOAD:
-        tb = fToolBar->GetButton(M_RELOAD);
-        tb->SetState(kButtonUp);
-	OpenAndParseFile( NULL);
 	break;
     }
     SET_DEBUG_STACK;
@@ -618,16 +641,15 @@ void IVCurve::HandleMenu(Int_t id)
     // Handle menu items.
     switch (id) 
     {
-
     case M_FILE_EXIT:
 	SendCloseMessage();
 	break;
 
-    case M_FILE_OPEN:
+    case M_FILE_LOAD:
 	DoLoad();
 	break;
 
-    case M_FILE_SAVEAS:
+    case M_FILE_SAVE:
 	DoSaveAs();
 	break;
 
@@ -780,7 +802,9 @@ void IVCurve::DoLoad()
 void IVCurve::PlotMe(Int_t Index)
 {
     SET_DEBUG_STACK;
+    cout << "PlotME" << endl;
     gPad->Clear();
+    fGraph->Draw("ALP");
     gPad->Update();
     SET_DEBUG_STACK;
 }
@@ -808,6 +832,13 @@ void IVCurve::PlotMe(Int_t Index)
 void IVCurve::CloseWindow()
 {
     SET_DEBUG_STACK;
+    if (fTimer)
+    {
+        fTimer->Stop();
+        fTimer->Disconnect("Timeout()");
+        delete fTimer;
+        fTimer = 0;
+    }
     // Got close message for this MainFrame. Terminates the application.
     gApplication->Terminate(0);
 }
@@ -1339,11 +1370,12 @@ bool IVCurve::OpenAndParseFile(const char *file)
     return true;
     SET_DEBUG_STACK;
 }
-bool IVCurve::CreateGraphObjects()
+bool IVCurve::CreateGraphObjects(void)
 {
     SET_DEBUG_STACK;
-    ftmg         = new TMultiGraph();
-    fLegend      = new TLegend(0.80, 0.75, 0.95, 0.89);
+//     ftmg         = new TMultiGraph();
+//     fLegend      = new TLegend(0.80, 0.75, 0.95, 0.89);
+    fGraph = new TGraph();
 
     SET_DEBUG_STACK;
     return true;
@@ -1455,4 +1487,46 @@ void IVCurve::CheckInstrumentStatus(void)
 	fMenuInstrument->UnCheckEntry(M_INST_K230);
     }
 
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : TimeoutProc
+ *
+ * Description : Update screen data periodically based on a timeout. 
+ *               This is only relevant when running real time meaning
+ *               there is a constantly updating position source.
+ * 
+ *               This should only be active when online. 
+ *
+ * Inputs :  NONE
+ *
+ * Returns : none
+ *
+ * Error Conditions : none
+ *
+ * Unit Tested on: 25-Mar-22
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void IVCurve::TimeoutProc(void)
+{
+    SET_DEBUG_STACK;
+
+    static Double_t x = 0;
+    static Double_t y = 0;
+
+    if(fTakeData)
+    {
+	x = x + 1.0;
+	y = pow(x,2.0);
+	fGraph->AddPoint(x,y);
+	// advance the voltage, take the measurement and plot it. 
+	PlotMe(0);
+    }
+    cout << "Timeout" << endl;
+    SET_DEBUG_STACK;
 }
