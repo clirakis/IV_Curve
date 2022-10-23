@@ -55,6 +55,8 @@ using namespace std;
 #include <TGLabel.h>
 #include <TColor.h>
 #include <TGraph.h>
+#include <TF1.h>
+#include <TPaveLabel.h>
 
 // Local Includes
 #include "debug.h"
@@ -102,6 +104,7 @@ enum SVPCommandIdentifiers {
    M_STOP,
    M_INST_K196,
    M_INST_K230,
+   M_INST_FIT,
 };
 
 /*
@@ -189,12 +192,12 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     fLastDir     = new TString(".");
 
     fGraph       = NULL;
-    ftmg         = NULL;
-    fLegend      = NULL;
     fZoomLevel   = 2;
     fTakeData    = kFALSE;
 
     CreateGraphObjects();
+
+    CreateFitFunction();
 
     // Last thing setup a timeout to run the process. 
     fTimer = new TTimer();
@@ -408,6 +411,8 @@ void IVCurve::CreateMenuBar()
     fMenuInstrument = new TGPopupMenu(gClient->GetRoot());
     fMenuInstrument->AddEntry("Keithley 196", M_INST_K196);
     fMenuInstrument->AddEntry("Keithley 230", M_INST_K230);
+    fMenuInstrument->AddSeparator();
+    fMenuInstrument->AddEntry("Fit",          M_INST_FIT);
 
     // Help menu -------------------------------------------
     MenuHelp = new TGPopupMenu(gClient->GetRoot());
@@ -664,7 +669,9 @@ void IVCurve::HandleMenu(Int_t id)
     case M_FILE_SAVEAS:
 	DoSaveAs();
 	break;
-
+    case M_INST_FIT:
+	FitData();
+	break;
     case M_FILE_PRINT:
 #if 0
         new TGPrintDialog 
@@ -847,6 +854,7 @@ void IVCurve::PlotMe(Int_t Index)
 
     gPad->Clear();
     fGraph->Draw("ALP");
+
     // SetTitle(char) FIXME - Add in a dialog to get info on what is under test
     //
     TH1 *f = fGraph->GetHistogram();
@@ -854,6 +862,7 @@ void IVCurve::PlotMe(Int_t Index)
     f->SetYTitle("Current (A)");
     f->SetLabelSize(0.03, "X");
     f->SetLabelSize(0.03, "Y");
+
     gPad->Update();
     SET_DEBUG_STACK;
 }
@@ -992,7 +1001,7 @@ void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py,
                 y0   = y1;
                 y1   = temp;
             }
-	    TH1 *h = ftmg->GetHistogram();
+	    TH1 *h = fGraph->GetHistogram();
 	    if (h)
 	    {
 		h->GetXaxis()->SetRangeUser(x0,x1);
@@ -1038,7 +1047,7 @@ void IVCurve::ProcessedEvent(Int_t event, Int_t px, Int_t py,
 void IVCurve::UnZoom(void)
 {
     SET_DEBUG_STACK;
-    TH1 *h = ftmg->GetHistogram();
+    TH1 *h = fGraph->GetHistogram();
     if (h)
     {
 	cout << "Got Histogram " << endl;
@@ -1120,7 +1129,7 @@ void IVCurve::ZoomAxis(TAxis *a)
 void IVCurve::Zoom(void)
 {
     SET_DEBUG_STACK;
-    TH1 *h = ftmg->GetHistogram();
+    TH1 *h = fGraph->GetHistogram();
     TAxis *ax;
     if (h)
     {
@@ -1161,10 +1170,11 @@ bool IVCurve::Load(const char *file)
 
     if (strstr(file, "root") != NULL)
     {
+	delete fGraph;
 	// Open a file for save, use the root file protocol. 
-	TFile myout(file, "NEW", "IVCurve Data");
-
-	myout.Close();
+	TFile myin(file, "READ");
+	fGraph = (TGraph *)myin.Get("Graph");
+	myin.Close();
     }
     else if(strstr(file, "csv") != NULL)
     {
@@ -1178,7 +1188,7 @@ bool IVCurve::Load(const char *file)
 	delete fGraph;
 	fGraph = new TGraph(file); 
     }
-
+    PlotMe(0);
     // Someday add in the ability to insert multiple files.
     SET_DEBUG_STACK;
     return true;
@@ -1212,7 +1222,7 @@ bool IVCurve::Save(const char *file)
     {
 	// Open a file for save, use the root file protocol. 
 	TFile myout(file, "NEW", "IVCurve Data");
-
+	fGraph->Write();
 	myout.Close();
     }
     else if((strstr(file, "csv") != NULL) ||
@@ -1272,9 +1282,9 @@ bool IVCurve::CreateGraphObjects(void)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : CleanGraphObjects
  *
- * Description :
+ * Description : NOt sure this is necessary
  *
  * Inputs :
  *
@@ -1293,17 +1303,8 @@ bool IVCurve::CleanGraphObjects(void)
 {
     SET_DEBUG_STACK;
     gPad->Clear();
+    delete fGraph;
 
-    if (ftmg)
-    {
-	delete ftmg;
-	ftmg = NULL;
-    }
-    if (fLegend)
-    {
-	delete fLegend;
-	fLegend = NULL;
-    }
     SET_DEBUG_STACK;
     return true;
 }
@@ -1442,11 +1443,11 @@ void IVCurve::TimeoutProc(void)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : FitData
  *
- * Description :
+ * Description : Fit the diode equation to the current plot. 
  *
- * Inputs :
+ * Inputs : NONE
  *
  * Returns :
  *
@@ -1462,14 +1463,26 @@ void IVCurve::TimeoutProc(void)
 void IVCurve::FitData(void)
 {
     SET_DEBUG_STACK;
+    /*
+     * https://en.wikipedia.org/wiki/Diode_modelling
+     *
+     * https://root.cern.ch/doc/master/classTGraph.html#a61269bcd47a57296f0f1d57ceff8feeb
+     *
+     * FIXME, put the upper and lower limits in. 
+     * parameters dialog. 
+     */
+    fGraph->Fit(fFitFunction,"V","", 0.0, 1.0);
+    PlotMe(0);
+    fPlotNotes->Draw();
 }
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : CreateFitFunction
  *
  * Description :
- *
+ * https://root.cern.ch/doc/master/classTF1.html
+ * 
  * Inputs :
  *
  * Returns :
@@ -1483,3 +1496,19 @@ void IVCurve::FitData(void)
  *
  *******************************************************************
  */
+void IVCurve::CreateFitFunction(void)
+{
+    /*
+     * Thermal voltage 
+     */
+    Double_t IdealityFactor = 1.0; 
+    Double_t Temperature    = 293.15;
+    Double_t ThermalVoltage =  IdealityFactor * TMath::K() * Temperature/TMath::Qe();
+    fFitFunction = new TF1("Shockley", "[0]*(exp(x/[1])-1.0)",0.0, 1.0);
+    fFitFunction->SetParameter(0, 1.0e-3);
+    // Can we fix the thermal voltage? 
+    fFitFunction->SetParameter(1, ThermalVoltage);
+
+    fPlotNotes = new TPaveLabel( 0.0, 1.0, 0.1, 1.2, 
+				 "I(V) = I_s(#exp(#frac{V}{K_{b} T})-1.0)");
+}

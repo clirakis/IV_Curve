@@ -38,6 +38,8 @@ class Instruments;
 class TGPopupMenu;
 class TGraph;
 class TTimer;
+class TF1;
+class TPaveLabel;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -71,10 +73,10 @@ private:
     /*
      * For plotting
      */
-    TMultiGraph         *ftmg;
-    TLegend             *fLegend;
     // Plotting
     TGraph*             fGraph;
+    TF1*                fFitFunction;
+    TPaveLabel*         fPlotNotes;
 
     Bool_t              fTakeData;
 
@@ -82,12 +84,14 @@ private:
     Bool_t              SelectOrZoom;   // True if in Zoom mode.
     Double_t            t1, y1, t2, y2;
     TMarker             *tm1, *tm2;
+
     // Regular zoom
     Double_t            fZoomLevel;
 
     // Labels for equipment status.
     TGLabel*            fMultimeter;
     TGLabel*            fVoltageSource;
+
     // Create colors for our status
     TColor*             fRedColor;
     TColor*             fGreenColor;
@@ -126,6 +130,7 @@ private:
     bool CreateGraphObjects(void);
     bool CleanGraphObjects(void);
     void SetCurrentFileName(const char *File);
+    void CreateFitFunction(void);
 
 };
 #endif
