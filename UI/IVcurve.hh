@@ -40,6 +40,7 @@ class TGraph;
 class TTimer;
 class TF1;
 class TPaveLabel;
+class TString;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -102,7 +103,8 @@ private:
 
     TTimer*             fTimer;
 
-
+    // Logging
+    TString*            fComment;
 
     // Private functions.
 

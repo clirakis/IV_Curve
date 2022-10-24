@@ -27,5 +27,6 @@
 #pragma link C++ class IVCurve;
 #pragma link C++ class ParamDlg;
 #pragma link C++ class ParamPane;
+#pragma link C++ class CommentDlg;
 
 #endif

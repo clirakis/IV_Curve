@@ -64,6 +64,7 @@ using namespace std;
 #include "Instruments.hh"
 #include "CLogger.hh"
 #include "ParamDialog.hh"
+#include "CommentDialog.hh"
 
 // Setup print queues. Way out of date!
 const char *PrintPrg[]  = {"/usr/bin/lpr","/usr/bin/lp"};
@@ -105,6 +106,7 @@ enum SVPCommandIdentifiers {
    M_INST_K196,
    M_INST_K230,
    M_INST_FIT,
+   M_INST_COMMENT,
 };
 
 /*
@@ -172,6 +174,7 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
 
     // Open the instruments - 
     fInstruments = new Instruments();
+    fComment     = NULL;
 
     Connect("CloseWindow()", "IVCurve" , this, "CloseWindow()");
 
@@ -238,6 +241,8 @@ IVCurve::~IVCurve()
     delete fLastDir;
     delete fInstruments;
     delete fGraph;
+    delete fComment;
+
     SET_DEBUG_STACK;
 }
 /**
@@ -413,6 +418,7 @@ void IVCurve::CreateMenuBar()
     fMenuInstrument->AddEntry("Keithley 230", M_INST_K230);
     fMenuInstrument->AddSeparator();
     fMenuInstrument->AddEntry("Fit",          M_INST_FIT);
+    fMenuInstrument->AddEntry("Comment",      M_INST_COMMENT);
 
     // Help menu -------------------------------------------
     MenuHelp = new TGPopupMenu(gClient->GetRoot());
@@ -543,6 +549,8 @@ void IVCurve::HandleToolBar(Int_t id)
     case M_START:
 	tb = fToolBar->GetButton(M_START);
         tb->SetState(kButtonUp);
+	fInstruments->Reset();
+	fInstruments->Setup();
 	fTakeData = kTRUE;
 	break;
     case M_STOP:
@@ -672,6 +680,19 @@ void IVCurve::HandleMenu(Int_t id)
     case M_INST_FIT:
 	FitData();
 	break;
+    case M_INST_COMMENT:
+    {
+	TString temp;
+	new CommentDlg(this, &temp);
+	if (temp.CompareTo("NONE")!=0)
+	{
+	    cout << "Comment: " << temp << endl;
+	    delete fComment;
+	    fComment = new TString(temp);
+	    CLogger::GetThis()->Log("# Comment: %s\n", fComment->Data());
+	}
+    }
+    break;
     case M_FILE_PRINT:
 #if 0
         new TGPrintDialog 
@@ -1223,6 +1244,7 @@ bool IVCurve::Save(const char *file)
 	// Open a file for save, use the root file protocol. 
 	TFile myout(file, "NEW", "IVCurve Data");
 	fGraph->Write();
+	//fComment->Write(); FIXME
 	myout.Close();
     }
     else if((strstr(file, "csv") != NULL) ||
@@ -1431,10 +1453,18 @@ void IVCurve::TimeoutProc(void)
 
     if(fTakeData)
     {
+#if 1
+	// Test code
 	x = x + 1.0;
 	y = pow(x,2.0);
 	fGraph->AddPoint(x,y);
+#else
 	// advance the voltage, take the measurement and plot it. 
+	fInstruments->StepAndAcquire();
+	x = fInstruments->Voltage();
+	y = fInstruments->Current();
+	fGraph->AddPoint(x,y);
+#endif
 	PlotMe(0);
     }
     cout << "Timeout" << endl;

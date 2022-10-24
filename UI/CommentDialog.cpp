@@ -1,11 +1,11 @@
 /**
  ******************************************************************
  *
- * Module Name : ParamDialog.cpp
+ * Module Name : CommentDialog.cpp
  *
- * Author/Date : C.B. Lirakis / 23-Nov-18
+ * Author/Date : C.B. Lirakis / 23-Oct-22
  *
- * Description : Edit the parameters for IV curve testing. 
+ * Description : Create a comment for the I/O
  *
  * Restrictions/Limitations :
  *
@@ -25,27 +25,23 @@ using namespace std;
 
 /// Root Includes
 #include <TROOT.h>
-#include <TCanvas.h>
 #include <TGFrame.h>
 #include <TGLabel.h>
 #include <TGButton.h>
 #include <TGTextEntry.h>
 #include <TGNumberEntry.h>
-#include <TMarker.h>
-#include <TList.h>
 #include <TGComboBox.h>
 #include <RQ_OBJECT.h>
+#include <TString.h>
 
 /// Local Includes.
 #include "debug.h"
-#include "ParamDialog.hh"
-#include "ParamPane.hh"
-#include "Instruments.hh"
+#include "CommentDialog.hh"
 
 /**
  ******************************************************************
  *
- * Function Name : PointDlg  Constructor
+ * Function Name : CommentDlg  Constructor
  *
  * Description :
  *
@@ -62,20 +58,18 @@ using namespace std;
  *
  *******************************************************************
  */
-ParamDlg::ParamDlg(const TGWindow *main)
+CommentDlg::CommentDlg(const TGWindow *main, TString *in)
     : TGTransientFrame(gClient->GetRoot(), main, 60, 40)
 {
-    Instruments *pInst = Instruments::GetThis();
+    TGLayoutHints* fL2 = new 
+	TGLayoutHints(kLHintsTop | kLHintsCenterX, 0, 0, 5, 5);
+    Connect("CloseWindow()", "CommentDlg", this, "CloseWindow()");
 
-    Connect("CloseWindow()", "ParamDlg", this, "CloseWindow()");
+    fReturn = in;
+    *fReturn = "NONE";
 
-    fParamPane = new ParamPane(this);
-    // Assume the system is on. 
-    fParamPane->FillFields(
-	pInst->Start(),
-	pInst->Stop(),
-	pInst->Step(),
-	pInst->Fine());
+    fComment = new TGTextEntry(this, "NONE");
+    AddFrame(fComment, fL2);
 
     BuildButtonBox();
 
@@ -87,7 +81,7 @@ ParamDlg::ParamDlg(const TGWindow *main)
 /**
  ******************************************************************
  *
- * Function Name : ParamDlg  Constructor
+ * Function Name : CommentDlg  Constructor
  *
  * Description :
  *
@@ -104,9 +98,9 @@ ParamDlg::ParamDlg(const TGWindow *main)
  *
  *******************************************************************
  */
-ParamDlg::~ParamDlg()
+CommentDlg::~CommentDlg()
 {
-    delete fParamPane;
+    delete fComment;
 }
 /**
  ******************************************************************
@@ -128,7 +122,7 @@ ParamDlg::~ParamDlg()
  *
  *******************************************************************
  */
-void ParamDlg::BuildButtonBox()
+void CommentDlg::BuildButtonBox()
 {
     TGButton *tb;
 
@@ -137,14 +131,14 @@ void ParamDlg::BuildButtonBox()
     TGCompositeFrame(this, 600, 20, kHorizontalFrame);
 
     TGLayoutHints* fL2 = new 
-    TGLayoutHints(kLHintsBottom | kLHintsCenterX, 0, 0, 5, 5);
+	TGLayoutHints(kLHintsBottom | kLHintsCenterX, 0, 0, 5, 5);
 
     tb = new TGTextButton( ButtonFrame, "  &Ok  ");
-    tb->Connect("Clicked()", "ParamDlg", this, "DoOK()");
+    tb->Connect("Clicked()", "CommentDlg", this, "DoOK()");
     ButtonFrame->AddFrame( tb, fL2);
 
     tb = new TGTextButton( ButtonFrame, "  &Cancel  ");
-    tb->Connect("Clicked()", "ParamDlg", this, "DoCancel()");
+    tb->Connect("Clicked()", "CommentDlg", this, "DoCancel()");
     ButtonFrame->AddFrame( tb, fL2);
 
     ButtonFrame->Resize();
@@ -171,7 +165,7 @@ void ParamDlg::BuildButtonBox()
  *
  *******************************************************************
  */
-void ParamDlg::CloseWindow()
+void CommentDlg::CloseWindow()
 {
     // Called when closed via window manager action.
     delete this;
@@ -198,15 +192,10 @@ void ParamDlg::CloseWindow()
  *
  *******************************************************************
  */
-void ParamDlg::DoOK(void)
+void CommentDlg::DoOK(void)
 {
     // Get the data an set the instruments up. 
-    Instruments *pInst = Instruments::GetThis();
-    pInst->Start(fParamPane->GetStart());
-    pInst->Stop (fParamPane->GetStop());
-    pInst->Step (fParamPane->GetStep());
-    pInst->Fine(fParamPane->GetFine());
-
+    *fReturn = fComment->GetDisplayText();
     SendCloseMessage();
 }
 /**
@@ -229,7 +218,7 @@ void ParamDlg::DoOK(void)
  *
  *******************************************************************
  */
-void ParamDlg::DoCancel()
+void CommentDlg::DoCancel()
 {
     SendCloseMessage();
 }
@@ -253,7 +242,7 @@ void ParamDlg::DoCancel()
  *
  *******************************************************************
  */
-void ParamDlg::DoClose()
+void CommentDlg::DoClose()
 {
    // Handle close button.
     SendCloseMessage();

@@ -30,11 +30,11 @@ LIBS = -L$(HOME)/lib_linux -lKeithley -lmygpib -lutility \
 # Rules to make the object files depend on the sources.
 SRC     = 
 SRCCPP  = main.cpp IVcurve.cpp Instruments.cpp ParamDialog.cpp \
-	ParamPane.cpp UserSignals.cpp IV_Dict.cpp
+	ParamPane.cpp CommentDialog.cpp UserSignals.cpp IV_Dict.cpp
 SRCS    = $(SRC) $(SRCCPP)
 
 HEADERS = IVcurve.hh Instruments.hh ParamDialog.hh ParamPane.hh \
-	UserSignals.hh IV_Linkdef.hh
+	CommentDialog.hh UserSignals.hh IV_Linkdef.hh
 
 # When we build all, what do we build?
 all:      $(TARGET)

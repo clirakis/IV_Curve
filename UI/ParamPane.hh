@@ -36,6 +36,8 @@ public:
     ParamPane(TGCompositeFrame*);
     ~ParamPane();
 
+    void FillFields( Double_t Start, Double_t Stop, Double_t Step, Double_t Fine);
+
     Double_t GetStart(void);
 
     Double_t GetStop(void);
@@ -49,7 +51,6 @@ public:
 
 private:
     // private functions
-    void FillFields( Double_t Start, Double_t Stop, Double_t Step, Double_t Fine);
     void CreateFields(void);
 
     TGNumberEntry   *fStart, *fStop, *fStep, *fFine;

@@ -37,7 +37,7 @@ const double kIncrement =  0.1;    // Volts
 const double kMedium    =  0.05;   // Volts
 const double kFine      =  0.01;   // Volts
 const double kStart     = -1.0;    // Volts
-const double kEnd       =  1.0;    // Volts
+const double kStop      =  1.0;    // Volts
 
 Instruments* Instruments::fInstruments;
 
@@ -69,6 +69,13 @@ Instruments::Instruments (void)
     // Try to open the instruments. 
     OpenKeithley196();
     OpenKeithley230();
+
+    Reset();
+    fStartVoltage = kStart;
+    fStopVoltage  = kStop;
+    fStep         = kIncrement;
+    fFine         = kFine;
+
     SET_DEBUG_STACK;
 }
 
@@ -98,7 +105,34 @@ Instruments::~Instruments (void)
     delete hgpib230;
     SET_DEBUG_STACK;
 }
-
+/**
+ ******************************************************************
+ *
+ * Function Name : Reset
+ *
+ * Description : Reset all state machine pointers etc. 
+ *
+ * Inputs : NONE
+ *
+ * Returns : NONE
+ *
+ * Error Conditions : NONE
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void Instruments::Reset(void)
+{
+    SET_DEBUG_STACK;
+    fStepNumber = 0;
+    fVoltage    = fStartVoltage;
+    fCurrent    = 0.0;
+    SET_DEBUG_STACK;
+}
 /**
  ******************************************************************
  *
@@ -174,7 +208,61 @@ bool Instruments::OpenKeithley230(void)
     SET_DEBUG_STACK;
     return true;
 }
+/**
+ ******************************************************************
+ *
+ * Function Name : Setup
+ *
+ * Description : Setup the instruments for acquisition. 
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool Instruments::Setup(void)
+{
+    CLogger *LogPtr = CLogger::GetThis();
 
+    if((hgpib196 == NULL) || (hgpib230 == NULL))
+    {
+	LogPtr->Log("# Setup: Units are not open.\n");
+	return false;
+    }
+
+    LogPtr->Log("# Setting up to run IV curve.\n");
+    LogPtr->Log("# SETUP Keithley 196 DMM. \n");
+#if 0
+    LogPtr->Log("# Read Keithley 196 DMM. Set to read DCV\n");
+    hgpib196->SetFunction(Keithley196::DCV);
+#else
+    LogPtr->Log("# Read Keithley 196 DMM. Set to read DCA\n");
+    hgpib196->SetFunction(Keithley196::DCA);
+#endif
+    LogPtr->Log("# 196DMM Initial read: %g status: %d Prefix: %s\n",
+		 hgpib196->GetData(), hgpib196->ReadStatus(), 
+		 hgpib196->Prefix());
+
+    // Setup 230 voltage source. 
+    LogPtr->Log("# SETUP Keithley 230 voltage source. \n");
+    hgpib230->SetUnitType(Keithley::VoltageSource);
+    hgpib230->Operate();
+    hgpib230->SetCurrent(8.0e-3);
+    hgpib230->DisplaySource();
+
+    LogPtr->Log("# Start: %f, Stop: %f, Step: %f, Fine: %f\n", 
+		fStartVoltage, fStopVoltage, fStep, fFine);
+    return true;
+    
+}
 /**
  ******************************************************************
  *
@@ -195,42 +283,40 @@ bool Instruments::OpenKeithley230(void)
  *
  *******************************************************************
  */
-void Instruments::StepAndAcquire(void)
+bool Instruments::StepAndAcquire(void)
 {
     /* Sleep between set and read. */
-    const struct timespec sleeptime = {0L, 500000000};
+    const struct timespec sleeptime = {0L, 250000000};
     CLogger *LogPtr = CLogger::GetThis();
-    double x;
 
-    cout <<"Setting up to run IV curve. " << endl;
-    LogPtr->Log("# SETUP Keithley 196 DMM. \n");
-    LogPtr->Log("#Read Keithley 196 DMM. Set to read DCV\n");
-    //hgpib196->SetFunction(Keithley196::DCV);
-    hgpib196->SetFunction(Keithley196::DCA);
-    LogPtr->Log("# Initial read: %g status: %d Prefix: %s\n",
-		 hgpib196->GetData(), hgpib196->ReadStatus(), 
-		 hgpib196->Prefix());
+    if((hgpib196 == NULL) || (hgpib230 == NULL))
+    {
+	LogPtr->Log("# Setup: Units are not open.\n");
+	return false;
+    }
+    fStepNumber++;
 
-    // Setup 230 voltage source. 
-    hgpib230->SetUnitType(Keithley::VoltageSource);
-    hgpib230->Operate();
-    hgpib230->SetCurrent(8.0e-3);
+    cout << "DEBUG Set Voltage: " << fVoltage << " " << fStepNumber << endl;
 
-    hgpib230->DisplaySource();
-    x = kStart; // Output voltage. 
-
-    cout << "Set Voltage: " << x << endl;
-    hgpib230->SetVoltage(x);
+    hgpib230->SetVoltage(fVoltage);
+    // Settle time
     nanosleep(&sleeptime, NULL);
     // Read back value. 
+    fCurrent = hgpib196->GetData();
     //LogPtr->Log("%g, %g,%s\n", x, hgpib196->GetData(), hgpib196->Prefix());
-    LogPtr->Log("%g %g\n", x, hgpib196->GetData());
-    // Step to next value. 
+    LogPtr->Log("%g %g\n", fVoltage, fCurrent);
+
+    // Look at result and determine when we should go fine. 
+    // Step to next value. FIXME
+#if 0
     if (fabs(x)>1.0)
 	x += kIncrement;
     else if (fabs(x)>0.7)
 	x += kMedium;
     else
 	x += kFine;
-
+#else
+    fVoltage += (fStep+fFine);
+#endif
+    return true;
 }
