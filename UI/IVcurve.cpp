@@ -57,6 +57,7 @@ using namespace std;
 #include <TGraph.h>
 #include <TF1.h>
 #include <TPaveLabel.h>
+#include <TLatex.h>
 
 // Local Includes
 #include "debug.h"
@@ -85,6 +86,7 @@ static const char *SPSaveTypes[] = {
     "Encapsulated PostScript", "*.eps",
     "PDF",          "*.pdf",
     "PNG",          "*.png",
+    "JPG",          "*.jpg",
     0,              0 };
 
 /*
@@ -688,8 +690,8 @@ void IVCurve::HandleMenu(Int_t id)
 	{
 	    cout << "Comment: " << temp << endl;
 	    delete fComment;
-	    fComment = new TString(temp);
-	    CLogger::GetThis()->Log("# Comment: %s\n", fComment->Data());
+	    fComment = new TObjString(temp);
+	    CLogger::GetThis()->Log("# Comment: %s\n", fComment->GetName());
 	}
     }
     break;
@@ -874,7 +876,9 @@ void IVCurve::PlotMe(Int_t Index)
     SET_DEBUG_STACK;
 
     gPad->Clear();
-    fGraph->Draw("ALP");
+    fGraph->SetMarkerSize(0.75);
+    fGraph->SetMarkerStyle(kPlus);
+    fGraph->Draw("ACP");
 
     // SetTitle(char) FIXME - Add in a dialog to get info on what is under test
     //
@@ -1244,7 +1248,7 @@ bool IVCurve::Save(const char *file)
 	// Open a file for save, use the root file protocol. 
 	TFile myout(file, "NEW", "IVCurve Data");
 	fGraph->Write();
-	//fComment->Write(); FIXME
+	fComment->Write(); 
 	myout.Close();
     }
     else if((strstr(file, "csv") != NULL) ||
@@ -1256,6 +1260,7 @@ bool IVCurve::Save(const char *file)
 	ofstream myout(file);
 	if(myout.is_open())
 	{
+	    myout << "# " << fComment->GetName() << endl;
 	    Int_t N = fGraph->GetN();
 	    Double_t x, y;
 	    for(Int_t i=0;i<N;i++)
@@ -1501,9 +1506,16 @@ void IVCurve::FitData(void)
      * FIXME, put the upper and lower limits in. 
      * parameters dialog. 
      */
-    fGraph->Fit(fFitFunction,"V","", 0.0, 1.0);
     PlotMe(0);
-    fPlotNotes->Draw();
+    TAxis *a     = fGraph->GetXaxis();
+    Double_t min = a->GetXmin();
+    Double_t max = a->GetXmax();
+    fFitFunction->SetRange(min,max);
+    fGraph->Fit(fFitFunction,"V","", min, max);
+    fPlotNotes->DrawLatexNDC( 0.15, 0.85,
+			      "I(V) = I_{s}(e^{#frac{V}{K_{b} T}}-1.0)");
+    fFitFunction->Draw("SAME");
+    gPad->Update();
 }
 /**
  ******************************************************************
@@ -1538,7 +1550,8 @@ void IVCurve::CreateFitFunction(void)
     fFitFunction->SetParameter(0, 1.0e-3);
     // Can we fix the thermal voltage? 
     fFitFunction->SetParameter(1, ThermalVoltage);
+    fFitFunction->SetLineColor(2);
 
-    fPlotNotes = new TPaveLabel( 0.0, 1.0, 0.1, 1.2, 
-				 "I(V) = I_s(#exp(#frac{V}{K_{b} T})-1.0)");
+    //fPlotNotes = new TPaveLabel( 0.0, 140.0, 4.0, 180.0, 
+    fPlotNotes = new TLatex( );
 }

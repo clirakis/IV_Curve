@@ -22,7 +22,6 @@
 using namespace std;
 #include <string>
 
-
 /// Root Includes
 #include <TROOT.h>
 #include <TGFrame.h>
@@ -62,13 +61,14 @@ CommentDlg::CommentDlg(const TGWindow *main, TString *in)
     : TGTransientFrame(gClient->GetRoot(), main, 60, 40)
 {
     TGLayoutHints* fL2 = new 
-	TGLayoutHints(kLHintsTop | kLHintsCenterX, 0, 0, 5, 5);
+	TGLayoutHints(kLHintsTop | kLHintsCenterX, 2, 2, 5, 5);
     Connect("CloseWindow()", "CommentDlg", this, "CloseWindow()");
-
+    SetWindowName("Plot Comment");
     fReturn = in;
     *fReturn = "NONE";
 
     fComment = new TGTextEntry(this, "NONE");
+    fComment->Resize(500,30);
     AddFrame(fComment, fL2);
 
     BuildButtonBox();

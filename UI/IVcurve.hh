@@ -41,6 +41,8 @@ class TTimer;
 class TF1;
 class TPaveLabel;
 class TString;
+class TObjString;
+class TLatex;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -77,7 +79,8 @@ private:
     // Plotting
     TGraph*             fGraph;
     TF1*                fFitFunction;
-    TPaveLabel*         fPlotNotes;
+    //TPaveLabel*         fPlotNotes;
+    TLatex*             fPlotNotes;
 
     Bool_t              fTakeData;
 
@@ -104,7 +107,7 @@ private:
     TTimer*             fTimer;
 
     // Logging
-    TString*            fComment;
+    TObjString*         fComment;
 
     // Private functions.
 
