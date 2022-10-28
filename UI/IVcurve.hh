@@ -25,7 +25,6 @@
 class TGWindow;
 class TLegend;
 class TMultiGraph;
-class TObjString;
 class TRootEmbeddedCanvas;
 class TGStatusBar;
 class TGToolBar;
@@ -41,7 +40,6 @@ class TTimer;
 class TF1;
 class TPaveLabel;
 class TString;
-class TObjString;
 class TLatex;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
@@ -107,7 +105,7 @@ private:
     TTimer*             fTimer;
 
     // Logging
-    TObjString*         fComment;
+    TString*            fComment;
 
     // Private functions.
 

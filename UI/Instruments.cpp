@@ -301,6 +301,15 @@ bool Instruments::StepAndAcquire(void)
 	 << fStepNumber << endl;
 #endif
 
+#if 0
+    fStepNumber++;
+    if (fabs(x)>1.0)
+	x += kIncrement;
+    else if (fabs(x)>0.7)
+	x += kMedium;
+    else
+	x += kFine;
+#else
     hgpib230->SetVoltage(fVoltage);
     // Settle time
     nanosleep(&sleeptime, NULL);
@@ -311,14 +320,6 @@ bool Instruments::StepAndAcquire(void)
 
     // Look at result and determine when we should go fine. 
     // Step to next value. FIXME
-#if 0
-    if (fabs(x)>1.0)
-	x += kIncrement;
-    else if (fabs(x)>0.7)
-	x += kMedium;
-    else
-	x += kFine;
-#else
     fVoltage += (fStep+fFine);
 #endif
     return true;

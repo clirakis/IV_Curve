@@ -51,7 +51,6 @@ using namespace std;
 #include <TRootHelpDialog.h>
 #include <TPoint.h>
 #include <TSystem.h>
-#include <TObjString.h>
 #include <TGLabel.h>
 #include <TColor.h>
 #include <TGraph.h>
@@ -555,7 +554,6 @@ void IVCurve::HandleToolBar(Int_t id)
 	fTimer->Start(500, kFALSE);
 	fInstruments->Reset();
 	fInstruments->Setup();
-	delete fGraph;
 	CreateGraphObjects();
 	fTakeData = kTRUE;
 	break;
@@ -693,10 +691,9 @@ void IVCurve::HandleMenu(Int_t id)
 	new CommentDlg(this, &temp);
 	if (temp.CompareTo("NONE")!=0)
 	{
-	    cout << "Comment: " << temp << endl;
 	    delete fComment;
-	    fComment = new TObjString(temp);
-	    CLogger::GetThis()->Log("# Comment: %s\n", fComment->GetName());
+	    fComment = new TString(temp);
+	    CLogger::GetThis()->Log("# Comment: %s\n", fComment->Data());
 	}
     }
     break;
@@ -1201,16 +1198,18 @@ bool IVCurve::Load(const char *file)
 
     if (strstr(file, "root") != NULL)
     {
-	delete fGraph;
+	CleanGraphObjects();
 	// Open a file for save, use the root file protocol. 
 	TFile myin(file, "READ");
-	fGraph = (TGraph *)myin.Get("Graph");
+	fGraph = (TGraph *)myin.Get("IVCurve");
 	myin.Close();
     }
     else if(strstr(file, "csv") != NULL)
     {
 	delete fGraph;
 	fGraph = new TGraph(file, "%lg,%lg");
+        // Named -- This appears to be used as the TKey. 
+	fGraph->SetName("IVCurve");  
     }
     else if((strstr(file, "tsv") != NULL) ||
 	    (strstr(file, "txt") != NULL))
@@ -1218,6 +1217,7 @@ bool IVCurve::Load(const char *file)
 	// In this case delete and recreate the load. 
 	delete fGraph;
 	fGraph = new TGraph(file); 
+	fGraph->SetName("IVCurve");
     }
     PlotMe(0);
     // Someday add in the ability to insert multiple files.
@@ -1253,8 +1253,16 @@ bool IVCurve::Save(const char *file)
     {
 	// Open a file for save, use the root file protocol. 
 	TFile myout(file, "NEW", "IVCurve Data");
+	//myout.cd();
 	fGraph->Write();
-	fComment->Write(); 
+	TNamed Named("Comment","NONE");
+
+	if (fComment)
+	{
+	    // Name the string we want to write, this gives it a key. 
+	    Named.SetTitle(fComment->Data());
+	    Named.Write(); 
+	}
 	myout.Close();
     }
     else if((strstr(file, "csv") != NULL) ||
@@ -1266,7 +1274,8 @@ bool IVCurve::Save(const char *file)
 	ofstream myout(file);
 	if(myout.is_open())
 	{
-	    myout << "# " << fComment->GetName() << endl;
+	    if (fComment)
+		myout << "# " << *fComment << endl;
 	    Int_t N = fGraph->GetN();
 	    Double_t x, y;
 	    for(Int_t i=0;i<N;i++)
@@ -1307,8 +1316,10 @@ bool IVCurve::CreateGraphObjects(void)
     SET_DEBUG_STACK;
 //     ftmg         = new TMultiGraph();
 //     fLegend      = new TLegend(0.80, 0.75, 0.95, 0.89);
+    CleanGraphObjects();
     fGraph = new TGraph();
-
+    // TNamed - This appears to create the key in the TFile structure. 
+    fGraph->SetName("IVCurve");
     SET_DEBUG_STACK;
     return true;
 }
@@ -1335,8 +1346,10 @@ bool IVCurve::CreateGraphObjects(void)
 bool IVCurve::CleanGraphObjects(void)
 {
     SET_DEBUG_STACK;
-    gPad->Clear();
+    if (gPad)
+	gPad->Clear();
     delete fGraph;
+    fGraph = NULL;
 
     SET_DEBUG_STACK;
     return true;
@@ -1378,7 +1391,7 @@ void IVCurve::DoSaveAs(void)
 	// No action to be taken!
 	return;
     }
-    cout << "Filename " << fi.fFilename << endl;
+
     if (strlen(fi.fFilename) > 0)
     {
 	TCanvas *c1 = fEmbeddedCanvas->GetCanvas();
@@ -1468,7 +1481,7 @@ void IVCurve::TimeoutProc(void)
 
     if(fTakeData)
     {
-#if 0
+#if 1
 	// Test code
 	x = x + 1.0;
 	y = pow(x,2.0);
