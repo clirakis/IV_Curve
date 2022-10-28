@@ -204,12 +204,14 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
 
     CreateFitFunction();
 
+    // Check instrument status
+    CheckInstrumentStatus();
     // Last thing setup a timeout to run the process. 
     fTimer = new TTimer();
     // Set it up to call PlotTimeoutProcedure once per second.
     fTimer->Connect("Timeout()", "IVCurve", this, "TimeoutProc()");
     CLogger::GetThis()->LogData("# IVcurve Timeout started.\n");
-    fTimer->Start(500, kFALSE);
+    //fTimer->Start(500, kFALSE);
 
     SET_DEBUG_STACK;
 }
@@ -225,7 +227,7 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
  * Returns :
  *
  * Error Conditions :
- * 
+* 
  * Unit Tested on: 
  *
  * Unit Tested by: CBL
@@ -349,7 +351,6 @@ void IVCurve::AddStatusPane(void)
 
 
     fMultimeter = new TGLabel( StatusPane, TGHotString("Keithley 196"));
-    // Set to off. 
     fMultimeter->SetTextColor(fRedColor);
     StatusPane->AddFrame(fMultimeter, L1);
 
@@ -551,14 +552,18 @@ void IVCurve::HandleToolBar(Int_t id)
     case M_START:
 	tb = fToolBar->GetButton(M_START);
         tb->SetState(kButtonUp);
+	fTimer->Start(500, kFALSE);
 	fInstruments->Reset();
 	fInstruments->Setup();
+	delete fGraph;
+	CreateGraphObjects();
 	fTakeData = kTRUE;
 	break;
     case M_STOP:
 	tb = fToolBar->GetButton(M_STOP);
         tb->SetState(kButtonUp);
 	fTakeData = kFALSE;
+	fTimer->Stop();
 	break;
     case M_ZOOM_PLUS:
 	Zoom();
@@ -718,6 +723,7 @@ void IVCurve::HandleMenu(Int_t id)
 	// Check the status of the menu and do the appropriate action. 
 	if (fMenuInstrument->IsEntryChecked(M_INST_K196))
 	{
+	    // If the instrument is off, turn it on. 
 	    cout << "Checked" << endl;
 	    fMenuInstrument->UnCheckEntry(M_INST_K196);
 	}
@@ -1409,19 +1415,23 @@ void IVCurve::CheckInstrumentStatus(void)
     if (fInstruments->Keithley196_OK())
     {
 	fMenuInstrument->CheckEntry(M_INST_K196);
+	fMultimeter->SetTextColor(fGreenColor);
     }
     else
     {
 	fMenuInstrument->UnCheckEntry(M_INST_K196);
+	fMultimeter->SetTextColor(fRedColor);
     }
 
     if (fInstruments->Keithley230_OK())
     {
 	fMenuInstrument->CheckEntry(M_INST_K230);
+	fVoltageSource->SetTextColor(fGreenColor);
     }
     else
     {
 	fMenuInstrument->UnCheckEntry(M_INST_K230);
+	fVoltageSource->SetTextColor(fRedColor);
     }
 
 }
@@ -1458,7 +1468,7 @@ void IVCurve::TimeoutProc(void)
 
     if(fTakeData)
     {
-#if 1
+#if 0
 	// Test code
 	x = x + 1.0;
 	y = pow(x,2.0);
@@ -1469,10 +1479,11 @@ void IVCurve::TimeoutProc(void)
 	x = fInstruments->Voltage();
 	y = fInstruments->Current();
 	fGraph->AddPoint(x,y);
+	fTakeData = !fInstruments->Done();
 #endif
 	PlotMe(0);
     }
-    cout << "Timeout" << endl;
+    //cout << "Timeout" << endl;
     SET_DEBUG_STACK;
 }
 /**

@@ -65,7 +65,7 @@ Instruments::Instruments (void)
 {
     SET_DEBUG_STACK;
     //CLogger *LogPtr = CLogger::GetThis();
-
+    fInstruments = this;
     // Try to open the instruments. 
     OpenKeithley196();
     OpenKeithley230();
@@ -255,6 +255,7 @@ bool Instruments::Setup(void)
     LogPtr->Log("# SETUP Keithley 230 voltage source. \n");
     hgpib230->SetUnitType(Keithley::VoltageSource);
     hgpib230->Operate();
+    // Limit the current to 8mA
     hgpib230->SetCurrent(8.0e-3);
     hgpib230->DisplaySource();
 
@@ -295,8 +296,10 @@ bool Instruments::StepAndAcquire(void)
 	return false;
     }
     fStepNumber++;
-
-    cout << "DEBUG Set Voltage: " << fVoltage << " " << fStepNumber << endl;
+#if 0
+    cout << "DEBUG Set Voltage: " << fVoltage << " " 
+	 << fStepNumber << endl;
+#endif
 
     hgpib230->SetVoltage(fVoltage);
     // Settle time

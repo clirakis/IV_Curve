@@ -47,7 +47,19 @@ public:
      *
      */
     bool StepAndAcquire(void);
-
+    /*!
+     * Description: 
+     *   
+     *
+     * Arguments:
+     *   
+     *
+     * Returns:
+     *
+     * Errors:
+     *
+     */
+    inline bool Done(void) const{ return (fVoltage> fStopVoltage);};
     /*!
      * Description: 
      *   
