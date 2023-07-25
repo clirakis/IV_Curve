@@ -196,7 +196,7 @@ bool Instruments::OpenKeithley230(void)
     SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
     int verbose = LogPtr->GetVerbose();
-    hgpib230 = new Keithley2x0( 13, 'V', verbose);
+    hgpib230 = new Keithley2x0( 14, 'V', verbose);
     if (hgpib230->CheckError())
     {
 	LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);

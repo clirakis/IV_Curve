@@ -3,9 +3,16 @@
  *
  * Module Name : main.cpp
  *
- * Author/Date : C.B. Lirakis / 23-Apr-08
+ * Author/Date : C.B. Lirakis / 18-Nov-18
  *
- * Description : Standalone spiceplot
+ * Description : This was originally defined to measure the current
+ * as a function of applied voltage. 
+ *
+ * 24-July-23   CBL Modify limits. I had a resistor inline with a 
+ * voltage source and really that is a current source. 
+ * I do need to make this such that this is parameter driven. AND
+ * such that I can use a current source and measure the voltage 
+ * across the diode. 
  *
  * Restrictions/Limitations :
  *

@@ -41,6 +41,7 @@ class TF1;
 class TPaveLabel;
 class TString;
 class TLatex;
+class TEnv;
 
 enum PlotStateVals {PLOT_STATE_NORMAL, PLOT_STATE_ZOOM};
 
@@ -107,6 +108,14 @@ private:
     // Logging
     TString*            fComment;
 
+    TEnv*               fEnv;
+
+    // Parameters that are configured
+    UChar_t             fVoltmeter_Address;
+    UChar_t             fVoltageSource_Address;
+    Double_t            fStart, fEnd, fStep, fFineStep;
+    Double_t            fResistor;
+
     // Private functions.
 
     void AddEmbeddedCanvas(UInt_t w, UInt_t h);
@@ -118,6 +127,9 @@ private:
     void DoSaveAs(void);
     bool Load(const char *Filename);
     bool Save(const char *Filename);
+    bool ReadConfiguration(void);
+    bool WriteConfiguration(void);
+    void CleanUp(void);
 
     void PlotMe(Int_t);
     void UnZoom(void);

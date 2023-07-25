@@ -7,6 +7,12 @@
  *
  * Description : Run and plot the IV curves
  *
+ * 24-Jul-23   CBL   Modified to include external setup parameters 
+ *                   (TENV)
+ *                   Starting to setup as a true voltage or current
+ *                   source. 
+ *                   Also store the resistor used. If this is zero
+ *                   then we are using a voltage source
  *
  * Restrictions/Limitations :
  *
@@ -31,17 +37,11 @@ using namespace std;
 #include <TGWindow.h>
 #include <TGToolBar.h>
 #include <TGStatusBar.h>
-#include <TGScrollBar.h>
 #include <TApplication.h>
 #include <TVirtualX.h>
-#include <TMultiGraph.h>
 #include <TAxis.h>
 #include <TGraph.h>
-#include <TMarker.h>
-#include <TLegend.h>
-#include <TGFrame.h>
 #include <TGButton.h>
-#include <TGMsgBox.h>
 #include <TGMenu.h>
 #include <TGFileDialog.h>
 #include <TRootEmbeddedCanvas.h>
@@ -49,14 +49,13 @@ using namespace std;
 #include <TH1.h>
 #include <TFile.h>
 #include <TRootHelpDialog.h>
-#include <TPoint.h>
 #include <TSystem.h>
 #include <TGLabel.h>
 #include <TColor.h>
-#include <TGraph.h>
 #include <TF1.h>
-#include <TPaveLabel.h>
 #include <TLatex.h>
+#include <TEnv.h>
+#include <TTimer.h>
 
 // Local Includes
 #include "debug.h"
@@ -172,6 +171,8 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     TGMainFrame( p, w, h,  kVerticalFrame)
 {
     SET_DEBUG_STACK;
+    ReadConfiguration();
+
 
     // Open the instruments - 
     fInstruments = new Instruments();
@@ -234,20 +235,55 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
  *
  *******************************************************************
  */
-IVCurve::~IVCurve()
+IVCurve::~IVCurve(void)
 {
     SET_DEBUG_STACK;
+    CleanUp();
+    SET_DEBUG_STACK;
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : CleanUp
+ *
+ * Description : clean up any resources we have allocated. 
+ *
+ * Inputs :
+ *
+ * Returns :
+ *
+ * Error Conditions :
+* 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void IVCurve::CleanUp(void)
+{
+    SET_DEBUG_STACK;
+    WriteConfiguration();
     if (fCurrentFile)
     {
 	delete fCurrentFile;
+	fCurrentFile = 0;
     }
     delete fLastDir;
+    fLastDir = 0;
     delete fInstruments;
+    fInstruments = 0;
     delete fGraph;
+    fGraph = 0;
     delete fComment;
+    fComment = 0;
 
     SET_DEBUG_STACK;
 }
+
+
+
 /**
  ******************************************************************
  *
@@ -926,6 +962,7 @@ void IVCurve::CloseWindow(void)
         fTimer = 0;
     }
     // Got close message for this MainFrame. Terminates the application.
+    CleanUp();
     gApplication->Terminate(0);
 }
 
@@ -1578,4 +1615,88 @@ void IVCurve::CreateFitFunction(void)
 
     //fPlotNotes = new TPaveLabel( 0.0, 140.0, 4.0, 180.0, 
     fPlotNotes = new TLatex( );
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : ReadConfiguration
+ *
+ * Description : Open read the configuration file. 
+ *
+ * Inputs : none
+ *
+ * Returns : NONE
+ *
+ * Error Conditions : NONE
+ * 
+ * Unit Tested on:  
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool IVCurve::ReadConfiguration(void)
+{
+    SET_DEBUG_STACK;
+    CLogger *log = CLogger::GetThis();
+
+    fEnv = new TEnv(".IVCurve");
+    log->Log("# IVCurve Loading prefs: %s \n", fEnv->GetRcName());
+
+    int32_t v = fEnv->GetValue("IVCurve.Verbose", 0);
+    log->SetVerbose(v);
+
+    fVoltmeter_Address = fEnv->GetValue("Voltmeter.GPIB", 3);
+    fVoltageSource_Address = fEnv->GetValue("VoltageSource.GPIB", 14);
+    fStart     = fEnv->GetValue("VoltageSource.Start",   -1.0);
+    fEnd       = fEnv->GetValue("VoltageSource.End",      1.0);
+    fStep      = fEnv->GetValue("VoltageSource.Step",     0.1);
+    fFineStep  = fEnv->GetValue("VoltageSource.FineStep", 0.01);
+    fResistor  = fEnv->GetValue("IVCurve.Resistance", 1000.0);
+    
+    SET_DEBUG_STACK;
+    return true;
+}
+
+/**
+ ******************************************************************
+ *
+ * Function Name : WriteConfigurationFile
+ *
+ * Description : Write out final configuration
+ *
+ * Inputs : none
+ *
+ * Returns : NONE
+ *
+ * Error Conditions : NONE
+ * 
+ * Unit Tested on:  
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+bool IVCurve::WriteConfiguration(void)
+{
+    SET_DEBUG_STACK;
+    CLogger *log = CLogger::GetThis();
+
+    log->Log("# IVCurve: Write Configuration.\n");
+    fEnv->SetValue("IVCurve.Verbose"   , (Int_t) log->GetVerbose());
+    fEnv->SetValue("Voltmeter.GPIB",         fVoltmeter_Address);
+    fEnv->SetValue("VoltageSource.GPIB",     fVoltageSource_Address );
+    fEnv->SetValue("VoltageSource.Start",    fStart);
+    fEnv->SetValue("VoltageSource.End",      fEnd);
+    fEnv->SetValue("VoltageSource.Step",     fStep);
+    fEnv->SetValue("VoltageSource.FineStep", fFineStep);
+    fEnv->SetValue("IVCurve.Resistance",     fResistor);
+    fEnv->SaveLevel(kEnvUser);
+    delete fEnv;
+    fEnv = 0;
+
+    SET_DEBUG_STACK;
+    return true;
 }
