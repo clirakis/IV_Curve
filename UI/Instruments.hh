@@ -27,9 +27,35 @@ class    Keithley2x0;
 /// Instruments documentation here. 
 class Instruments {
 public:
-    /// Default Constructor
-    Instruments(void);
-    /// Default destructor
+
+    /*!
+     * Description: 
+     *    Open up both instruments and configure them as necessary.
+     *
+     * Arguments:
+     *   Keithley196_Address - Keithley 196 Multimeter GPIB address
+     *   Keithley230_Address - Keithley 230 Voltage Source GPIB address
+     *
+     * Returns:
+     *   None
+     *
+     * Errors:
+     *   If the device fails to open, check Error() method. 
+     */
+    Instruments(uint8_t Keithley196_Address, uint8_t Keithley230_Address);
+
+    /*!
+     * Description: 
+     *   
+     *
+     * Arguments:
+     *   
+     *
+     * Returns:
+     *
+     * Errors:
+     *
+     */
     ~Instruments(void);
 
     /// Instruments function
@@ -60,33 +86,6 @@ public:
      *
      */
     inline bool Done(void) const{ return (fVoltage> fStopVoltage);};
-    /*!
-     * Description: 
-     *   
-     *
-     * Arguments:
-     *   
-     *
-     * Returns:
-     *
-     * Errors:
-     *
-     */
-    bool OpenKeithley196(void);
-
-    /*!
-     * Description: 
-     *   
-     *
-     * Arguments:
-     *   
-     *
-     * Returns:
-     *
-     * Errors:
-     *
-     */
-    bool OpenKeithley230(void);
 
     /* *****************************************************
      * Inline functions
@@ -138,10 +137,42 @@ public:
     inline void     Fine (double Volts) {fFine = Volts;};
     inline double   Fine (void) const {return fFine;};
 
+    uint8_t MultimeterAddress(void) const;
+    uint8_t VoltageSourceAddress(void) const;
+
     /*! Access the This pointer. */
     static Instruments* GetThis(void) {return fInstruments;};
 
 private:
+
+    /*!
+     * Description: 
+     *   
+     *
+     * Arguments:
+     *   
+     *
+     * Returns:
+     *
+     * Errors:
+     *
+     */
+    bool OpenKeithley196(uint8_t address);
+
+    /*!
+     * Description: 
+     *   
+     *
+     * Arguments:
+     *   
+     *
+     * Returns:
+     *
+     * Errors:
+     *
+     */
+    bool OpenKeithley230(uint8_t address);
+
     Keithley196*  hgpib196;
     Keithley2x0*  hgpib230;
 

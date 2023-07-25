@@ -16,4 +16,6 @@ modules.order
 *.png
 .DS_Store
 ._.DS_Store
-
+IV_Dict.cpp
+IV_Dict_rdict.pcm
+IVplot

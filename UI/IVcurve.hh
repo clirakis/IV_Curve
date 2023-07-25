@@ -110,10 +110,6 @@ private:
 
     TEnv*               fEnv;
 
-    // Parameters that are configured
-    UChar_t             fVoltmeter_Address;
-    UChar_t             fVoltageSource_Address;
-    Double_t            fStart, fEnd, fStep, fFineStep;
     Double_t            fResistor;
 
     // Private functions.

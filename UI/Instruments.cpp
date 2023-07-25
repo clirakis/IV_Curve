@@ -32,7 +32,7 @@ using namespace std;
 #include "CLogger.hh"
 #include "Instruments.hh"
 
-// Starting values
+// Default Starting values
 const double kIncrement =  0.1;    // Volts
 const double kMedium    =  0.05;   // Volts
 const double kFine      =  0.01;   // Volts
@@ -47,12 +47,15 @@ Instruments* Instruments::fInstruments;
  * Function Name : Instruments constructor
  *
  * Description :
+ *     Open up both instruments and configure them as necessary.
  *
  * Inputs :
+ *   Keithley196_Address - Keithley 196 Multimeter GPIB address
+ *   Keithley230_Address - Keithley 230 Voltage Source GPIB address
  *
- * Returns :
+ * Returns : NONE
  *
- * Error Conditions :
+ * Error Conditions : if GPIB open fails
  * 
  * Unit Tested on: 
  *
@@ -61,14 +64,15 @@ Instruments* Instruments::fInstruments;
  *
  *******************************************************************
  */
-Instruments::Instruments (void)
+Instruments::Instruments (uint8_t Keithley196_Address, 
+			  uint8_t Keithley230_Address)
 {
     SET_DEBUG_STACK;
     //CLogger *LogPtr = CLogger::GetThis();
     fInstruments = this;
     // Try to open the instruments. 
-    OpenKeithley196();
-    OpenKeithley230();
+    OpenKeithley196(Keithley196_Address);
+    OpenKeithley230(Keithley230_Address);
 
     Reset();
     fStartVoltage = kStart;
@@ -153,12 +157,12 @@ void Instruments::Reset(void)
  *
  *******************************************************************
  */
-bool Instruments::OpenKeithley196(void)
+bool Instruments::OpenKeithley196(uint8_t address)
 {
     SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
     int verbose = LogPtr->GetVerbose();
-    hgpib196 = new Keithley196( 3, verbose);
+    hgpib196 = new Keithley196( address, verbose);
     if (hgpib196->CheckError())
     {
 	LogPtr->Log("# Error opening device. perhaps wrong GPIB address.\n");
@@ -191,12 +195,12 @@ bool Instruments::OpenKeithley196(void)
  *
  *******************************************************************
  */
-bool Instruments::OpenKeithley230(void)
+bool Instruments::OpenKeithley230(uint8_t address)
 {
     SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
     int verbose = LogPtr->GetVerbose();
-    hgpib230 = new Keithley2x0( 14, 'V', verbose);
+    hgpib230 = new Keithley2x0( address, 'V', verbose);
     if (hgpib230->CheckError())
     {
 	LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);
@@ -323,4 +327,14 @@ bool Instruments::StepAndAcquire(void)
     fVoltage += (fStep+fFine);
 #endif
     return true;
+}
+uint8_t Instruments::MultimeterAddress(void) const 
+{
+    SET_DEBUG_STACK;
+    return hgpib196->Address();
+}
+uint8_t Instruments::VoltageSourceAddress(void) const 
+{
+    SET_DEBUG_STACK;
+    return hgpib230->Address();
 }

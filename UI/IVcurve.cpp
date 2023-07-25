@@ -5,7 +5,9 @@
  *
  * Author/Date : C.B. Lirakis / 22-Nov-18
  *
- * Description : Run and plot the IV curves
+ * Description : Run and plot the IV curves. This is mainly motivated
+ *               by choosing the best possible 1N34 diode for a 
+ *               crystal radio! ;-)
  *
  * 24-Jul-23   CBL   Modified to include external setup parameters 
  *                   (TENV)
@@ -21,6 +23,7 @@
  * Classification : Unclassified
  *
  * References :
+ *
  *******************************************************************
  */
 // System includes.
@@ -141,7 +144,12 @@ ToolBarData_t toolbar_data[] = {
 
 
 static const char *HelpText1 = 
-    "This dialog allows plotting of the traces from running an IV-curve\n This requires usage of the Keithly 196 and 230 multimeter and voltage source";
+    "This dialog allows plotting of the traces from running an IV-curve\n"\
+    "A Keithly 196 multimeter and 230 voltage source are used.\n"\ 
+    "This can be run in at least two configurations.\n"\
+    "1) a direct voltage source (R=0) or\n"\
+    "using the voltage source with R>0 to make a current source. \n"\
+    " In that case, R should be set to the measured value of the device.\n";
 
 
 /**
@@ -173,10 +181,6 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
     SET_DEBUG_STACK;
     ReadConfiguration();
 
-
-    // Open the instruments - 
-    fInstruments = new Instruments();
-    fComment     = NULL;
 
     Connect("CloseWindow()", "IVCurve" , this, "CloseWindow()");
 
@@ -1641,20 +1645,35 @@ bool IVCurve::ReadConfiguration(void)
     SET_DEBUG_STACK;
     CLogger *log = CLogger::GetThis();
 
+
+
     fEnv = new TEnv(".IVCurve");
     log->Log("# IVCurve Loading prefs: %s \n", fEnv->GetRcName());
 
     int32_t v = fEnv->GetValue("IVCurve.Verbose", 0);
     log->SetVerbose(v);
 
-    fVoltmeter_Address = fEnv->GetValue("Voltmeter.GPIB", 3);
-    fVoltageSource_Address = fEnv->GetValue("VoltageSource.GPIB", 14);
-    fStart     = fEnv->GetValue("VoltageSource.Start",   -1.0);
-    fEnd       = fEnv->GetValue("VoltageSource.End",      1.0);
-    fStep      = fEnv->GetValue("VoltageSource.Step",     0.1);
-    fFineStep  = fEnv->GetValue("VoltageSource.FineStep", 0.01);
-    fResistor  = fEnv->GetValue("IVCurve.Resistance", 1000.0);
-    
+    uint8_t Voltmeter     = fEnv->GetValue("Voltmeter.GPIB", 3);
+    uint8_t VoltageSource = fEnv->GetValue("VoltageSource.GPIB", 14);
+    double Start          = fEnv->GetValue("VoltageSource.Start",   -1.0);
+    double Stop           = fEnv->GetValue("VoltageSource.Stop",     1.0);
+    double Step           = fEnv->GetValue("VoltageSource.Step",     0.1);
+    double Fine           = fEnv->GetValue("VoltageSource.FineStep", 0.01);
+    fResistor             = fEnv->GetValue("IVCurve.Resistance", 1000.0);
+
+    // Open the instruments - 
+    fInstruments = new Instruments(Voltmeter, VoltageSource);
+    fComment     = NULL;
+
+    /**
+     * Configure the various parameters in the instruments according to
+     * the configuration file. 
+     */
+    fInstruments->Start(Start);
+    fInstruments->Stop( Stop);
+    fInstruments->Step( Step);
+    fInstruments->Fine( Fine);
+
     SET_DEBUG_STACK;
     return true;
 }
@@ -1686,12 +1705,12 @@ bool IVCurve::WriteConfiguration(void)
 
     log->Log("# IVCurve: Write Configuration.\n");
     fEnv->SetValue("IVCurve.Verbose"   , (Int_t) log->GetVerbose());
-    fEnv->SetValue("Voltmeter.GPIB",         fVoltmeter_Address);
-    fEnv->SetValue("VoltageSource.GPIB",     fVoltageSource_Address );
-    fEnv->SetValue("VoltageSource.Start",    fStart);
-    fEnv->SetValue("VoltageSource.End",      fEnd);
-    fEnv->SetValue("VoltageSource.Step",     fStep);
-    fEnv->SetValue("VoltageSource.FineStep", fFineStep);
+    fEnv->SetValue("Voltmeter.GPIB",     fInstruments->MultimeterAddress());
+    fEnv->SetValue("VoltageSource.GPIB", fInstruments->VoltageSourceAddress());
+    fEnv->SetValue("VoltageSource.Start",    fInstruments->Start());
+    fEnv->SetValue("VoltageSource.Stop",     fInstruments->Stop());
+    fEnv->SetValue("VoltageSource.Step",     fInstruments->Step());
+    fEnv->SetValue("VoltageSource.FineStep", fInstruments->Fine());
     fEnv->SetValue("IVCurve.Resistance",     fResistor);
     fEnv->SaveLevel(kEnvUser);
     delete fEnv;

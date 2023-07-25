@@ -14,6 +14,8 @@
  * such that I can use a current source and measure the voltage 
  * across the diode. 
  *
+ * 25-July-23   CBL put TEnv in the main class IV_Curve. Hooking it up.
+ *
  * Restrictions/Limitations :
  *
  * Change Descriptions :
@@ -34,12 +36,8 @@ using namespace std;
 #include <stdlib.h>
 
 /// Root includes http://root.cern.ch
-#include <TROOT.h>
 #include <TRint.h>
 #include <TStyle.h>
-#include <TEnv.h>  
-#include <KeySymbols.h>
-#include <pthread.h>
 
 /// Local Includes.
 #include "debug.h"
@@ -52,7 +50,7 @@ Bool_t rootint = kFALSE;
 TApplication *theApp;
 
 // My variables. 
-const  double        Version   = 1.3;
+const  double        Version   = 1.4;
 static CLogger*      LogPtr;
 
 extern char         *optarg;
