@@ -123,21 +123,70 @@ public:
 					      (hgpib230!=NULL));};
 
     void Reset(void);
-    bool Setup(void);
 
+    /*!
+     * Description: 
+     *   Setup - configure the voltage source and multimeter. 
+     *   if Current is set to true - configure the multimeter to read
+     *   amps, otherwise configure to read voltage. 
+     *
+     * Arguments:
+     *   Current a boolean variable, if set to true setup the Keithley196
+     *           to measure current. NOTE this requires a different physical
+     *           lead setup
+     *
+     * Returns:
+     *   True on success
+     *
+     * Errors:
+     *   NONE
+     *
+     */
+    bool Setup(bool Current);
+
+    
+    /*!
+     * Description: 
+     *   Voltage - Return the requested voltage value from the 230 unit
+     *
+     * Arguments:
+     *   NONE
+     *
+     * Returns:
+     *   Should be the output voltage requested from the last operation
+     *
+     * Errors:
+     *   NONE
+     */
     inline double Voltage(void) const {return fVoltage;};
-    inline double Current(void) const {return fCurrent;};
+    /*!
+     * Description: 
+     *   Result of the last operation
+     *
+     * Arguments:
+     *   NONE
+     *
+     * Returns:
+     *   returns the Voltage or Current (depending on the setup)
+     *   of the last operation. 
+     *
+     * Errors:
+     *
+     */
+    inline double Result(void) const {return fResult;};
 
     inline void     Start(double Volts) {fStartVoltage = Volts;};
-    inline double   Start(void) const {return fStartVoltage;};
+    inline double   Start(void) const   {return fStartVoltage;};
     inline void     Stop (double Volts) {fStopVoltage = Volts;};
-    inline double   Stop (void) const {return fStopVoltage;};
+    inline double   Stop (void) const   {return fStopVoltage;};
     inline void     Step (double Volts) {fStep = Volts;};
-    inline double   Step (void) const {return fStep;};
+    inline double   Step (void) const   {return fStep;};
     inline void     Fine (double Volts) {fFine = Volts;};
-    inline double   Fine (void) const {return fFine;};
+    inline double   Fine (void) const   {return fFine;};
+    inline void     Window(double volts) {fWindow = volts;};
+    inline double   Window(void) const  {return fWindow;};
 
-    uint8_t MultimeterAddress(void) const;
+    uint8_t MultimeterAddress(void)    const;
     uint8_t VoltageSourceAddress(void) const;
 
     /*! Access the This pointer. */
@@ -183,9 +232,11 @@ private:
     double   fStopVoltage;     /*! Ending Voltage for sweep */
     double   fStep;            /*! Corse step               */
     double   fFine;            /*! Fine step                */
-    double   fVoltage;         /*! Current voltage value    */
-
-    double   fCurrent;         /*! Last current measured    */
+    double   fVoltage;         /*! Requested voltage value  */
+    double   fWindow;          /*! Window where fine step kicks in. eg fabs(V)<window */
+    double   fResult;          /*! Last voltage or current measured    */
+    double   fCurrentStep;     /*! checking. */
+    uint8_t  fStepType;        /*! 0 - coarse, 1 - fine */
 
     /*! The static 'this' pointer. */
     static Instruments *fInstruments;

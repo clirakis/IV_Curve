@@ -110,7 +110,11 @@ private:
 
     TEnv*               fEnv;
 
+
+    // Enviroment settings
     Double_t            fResistor;
+    bool                fTest;
+
 
     // Private functions.
 

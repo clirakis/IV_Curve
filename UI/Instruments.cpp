@@ -38,6 +38,7 @@ const double kMedium    =  0.05;   // Volts
 const double kFine      =  0.01;   // Volts
 const double kStart     = -1.0;    // Volts
 const double kStop      =  1.0;    // Volts
+const double kCurrentLimit = 1.0e3; // Current limit 1mA
 
 Instruments* Instruments::fInstruments;
 
@@ -79,7 +80,7 @@ Instruments::Instruments (uint8_t Keithley196_Address,
     fStopVoltage  = kStop;
     fStep         = kIncrement;
     fFine         = kFine;
-
+    fCurrentStep  = fStep;
     SET_DEBUG_STACK;
 }
 
@@ -132,17 +133,20 @@ Instruments::~Instruments (void)
 void Instruments::Reset(void)
 {
     SET_DEBUG_STACK;
-    fStepNumber = 0;
-    fVoltage    = fStartVoltage;
-    fCurrent    = 0.0;
+    fStepNumber  = 0;
+    fVoltage     = fStartVoltage;
+    fResult      = 0.0;
+    fCurrentStep = fStep;
+    fStepType    = 0;
     SET_DEBUG_STACK;
 }
 /**
  ******************************************************************
  *
- * Function Name : 
+ * Function Name : OpenKeithley196
  *
- * Description : 
+ * Description : Open the multimeter in this case straight out of the box
+ *               setup to measure voltage. 
  *
  * Inputs : NONE
  *
@@ -171,6 +175,7 @@ bool Instruments::OpenKeithley196(uint8_t address)
 	SET_DEBUG_STACK;    
 	return false;
     }
+    LogPtr->Log("# Keithley 196 open at address %d\n", address);
     SET_DEBUG_STACK;
     return true;
 }
@@ -178,11 +183,11 @@ bool Instruments::OpenKeithley196(uint8_t address)
 /**
  ******************************************************************
  *
- * Function Name : 
+ * Function Name : OpenKeithley230
  *
- * Description : 
+ * Description : open up the Keithley230 Voltage source
  *
- * Inputs : NONE
+ * Inputs : address - gpib address to use. 
  *
  * Returns : NONE
  *
@@ -209,6 +214,7 @@ bool Instruments::OpenKeithley230(uint8_t address)
 	SET_DEBUG_STACK;    
 	return false;
     }
+    LogPtr->Log("# Keithley 230 open at address: %d\n", address);
     SET_DEBUG_STACK;
     return true;
 }
@@ -220,8 +226,11 @@ bool Instruments::OpenKeithley230(uint8_t address)
  * Description : Setup the instruments for acquisition. 
  *
  * Inputs :
+ *   Current a boolean variable, if set to true setup the Keithley196
+ *           to measure current. NOTE this requires a different physical
+ *           lead setup
  *
- * Returns :
+ * Returns : true on success
  *
  * Error Conditions :
  * 
@@ -232,8 +241,9 @@ bool Instruments::OpenKeithley230(uint8_t address)
  *
  *******************************************************************
  */
-bool Instruments::Setup(void)
+bool Instruments::Setup(bool Current)
 {
+    SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
 
     if((hgpib196 == NULL) || (hgpib230 == NULL))
@@ -244,13 +254,16 @@ bool Instruments::Setup(void)
 
     LogPtr->Log("# Setting up to run IV curve.\n");
     LogPtr->Log("# SETUP Keithley 196 DMM. \n");
-#if 0
-    LogPtr->Log("# Read Keithley 196 DMM. Set to read DCV\n");
-    hgpib196->SetFunction(Keithley196::DCV);
-#else
-    LogPtr->Log("# Read Keithley 196 DMM. Set to read DCA\n");
-    hgpib196->SetFunction(Keithley196::DCA);
-#endif
+    if (Current)
+    {
+	LogPtr->Log("# Read Keithley 196 DMM. Set to read DCA\n");
+	hgpib196->SetFunction(Keithley196::DCA);
+    }
+    else
+    {
+	LogPtr->Log("# Read Keithley 196 DMM. Set to read DCV\n");
+	hgpib196->SetFunction(Keithley196::DCV);
+    }
     LogPtr->Log("# 196DMM Initial read: %g status: %d Prefix: %s\n",
 		 hgpib196->GetData(), hgpib196->ReadStatus(), 
 		 hgpib196->Prefix());
@@ -259,14 +272,14 @@ bool Instruments::Setup(void)
     LogPtr->Log("# SETUP Keithley 230 voltage source. \n");
     hgpib230->SetUnitType(Keithley::VoltageSource);
     hgpib230->Operate();
-    // Limit the current to 8mA
-    hgpib230->SetCurrent(8.0e-3);
+    // Set the current limit
+    hgpib230->SetCurrent(kCurrentLimit);
     hgpib230->DisplaySource();
 
     LogPtr->Log("# Start: %f, Stop: %f, Step: %f, Fine: %f\n", 
 		fStartVoltage, fStopVoltage, fStep, fFine);
-    return true;
-    
+    SET_DEBUG_STACK;
+    return true;   
 }
 /**
  ******************************************************************
@@ -275,13 +288,13 @@ bool Instruments::Setup(void)
  *
  * Description : Step the voltage applied and measure the resulting current
  *
- * Inputs :
+ * Inputs : NONE
  *
- * Returns :
+ * Returns : true on success
  *
- * Error Conditions :
+ * Error Conditions : fails if either of the GPIB units are not open
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -290,9 +303,13 @@ bool Instruments::Setup(void)
  */
 bool Instruments::StepAndAcquire(void)
 {
+    SET_DEBUG_STACK;
+    double StepSize = 0.0; 
     /* Sleep between set and read. */
     const struct timespec sleeptime = {0L, 250000000};
+    const struct timespec slough    = {1L, 000000000};
     CLogger *LogPtr = CLogger::GetThis();
+    //int verbose = LogPtr->GetVerbose();
 
     if((hgpib196 == NULL) || (hgpib230 == NULL))
     {
@@ -300,32 +317,54 @@ bool Instruments::StepAndAcquire(void)
 	return false;
     }
     fStepNumber++;
-#if 0
-    cout << "DEBUG Set Voltage: " << fVoltage << " " 
-	 << fStepNumber << endl;
-#endif
-
-#if 0
-    fStepNumber++;
-    if (fabs(x)>1.0)
-	x += kIncrement;
-    else if (fabs(x)>0.7)
-	x += kMedium;
-    else
-	x += kFine;
-#else
     hgpib230->SetVoltage(fVoltage);
     // Settle time
     nanosleep(&sleeptime, NULL);
     // Read back value. 
-    fCurrent = hgpib196->GetData();
+    fResult = hgpib196->GetData();
     //LogPtr->Log("%g, %g,%s\n", x, hgpib196->GetData(), hgpib196->Prefix());
-    LogPtr->Log("%g %g\n", fVoltage, fCurrent);
+    LogPtr->Log("%g, %g\n", fVoltage, fResult);
 
-    // Look at result and determine when we should go fine. 
-    // Step to next value. FIXME
-    fVoltage += (fStep+fFine);
-#endif
+    /**
+     * Step to next value. 
+     * near zero or any other value for that matter step fine. 
+     */
+
+    switch(fStepType)
+    {
+    case 0: /* coarse */
+	if (fabs(fVoltage+fCurrentStep)>=fWindow)
+	{
+	    StepSize = fStep;
+	}
+	else
+	{
+	    fStepType = 1;
+	    StepSize = fFine;
+	}
+	break;
+    case 1:
+	if (fabs(fVoltage+fCurrentStep)>=fWindow)
+	{
+	    // Crossed the threshold
+	    fStepType = 0;
+	    StepSize = fStep;
+	}
+	else
+	{
+	    StepSize = fFine;
+	}
+	break;
+    }
+    if (fCurrentStep != StepSize)
+    {
+	cout << "Change" << endl;
+	fCurrentStep = StepSize;
+	// Give this more time to settle
+	nanosleep(&slough, NULL);
+    }
+    fVoltage += fCurrentStep;
+    SET_DEBUG_STACK;
     return true;
 }
 uint8_t Instruments::MultimeterAddress(void) const 

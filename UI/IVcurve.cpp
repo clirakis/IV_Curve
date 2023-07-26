@@ -145,7 +145,7 @@ ToolBarData_t toolbar_data[] = {
 
 static const char *HelpText1 = 
     "This dialog allows plotting of the traces from running an IV-curve\n"\
-    "A Keithly 196 multimeter and 230 voltage source are used.\n"\ 
+    "A Keithly 196 multimeter and 230 voltage source are used.\n"\
     "This can be run in at least two configurations.\n"\
     "1) a direct voltage source (R=0) or\n"\
     "using the voltage source with R>0 to make a current source. \n"\
@@ -180,7 +180,6 @@ IVCurve::IVCurve(const TGWindow *p, UInt_t w, UInt_t h) :
 {
     SET_DEBUG_STACK;
     ReadConfiguration();
-
 
     Connect("CloseWindow()", "IVCurve" , this, "CloseWindow()");
 
@@ -285,8 +284,6 @@ void IVCurve::CleanUp(void)
 
     SET_DEBUG_STACK;
 }
-
-
 
 /**
  ******************************************************************
@@ -568,9 +565,9 @@ void IVCurve::CreateToolBar()
  *
  * Error Conditions : none
  *
- * Unit Tested on:
+ * Unit Tested on: 25-Jul-23
  *
- * Unit Tested by:
+ * Unit Tested by: CBL
  *
  *
  *******************************************************************
@@ -593,7 +590,7 @@ void IVCurve::HandleToolBar(Int_t id)
         tb->SetState(kButtonUp);
 	fTimer->Start(500, kFALSE);
 	fInstruments->Reset();
-	fInstruments->Setup();
+	fInstruments->Setup(false);  // set to voltage source, FIXME
 	CreateGraphObjects();
 	fTakeData = kTRUE;
 	break;
@@ -624,17 +621,18 @@ void IVCurve::HandleToolBar(Int_t id)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : CreateStatusBar
  *
- * Description :
+ * Description : Create a status bar that shows the loaded file, 
+ *               running in test mode or real data. 
  *
- * Inputs :
+ * Inputs : NONE
  *
- * Returns :
+ * Returns : NONE
  *
  * Error Conditions :
  * 
- * Unit Tested on: 13-Jul-05
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -657,26 +655,6 @@ void IVCurve::CreateStatusBar(void)
     fStatusBar->SetText("Please Select Data to Display.",0);
     SET_DEBUG_STACK;
 }
-/**
- ******************************************************************
- *
- * Function Name :
- *
- * Description :
- *
- * Inputs :
- *
- * Returns :
- *
- * Error Conditions :
- * 
- * Unit Tested on: 
- *
- * Unit Tested by: CBL
- *
- *
- *******************************************************************
- */
 
 /**
  ******************************************************************
@@ -797,17 +775,18 @@ void IVCurve::HandleMenu(Int_t id)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : SetCurrentFileName
  *
- * Description :
+ * Description : set the current file name loaded and put it on the status 
+ *               bar
  *
- * Inputs :
+ * Inputs : loaded file
  *
- * Returns :
+ * Returns : NONE
  *
- * Error Conditions :
+ * Error Conditions : NONE
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -897,17 +876,17 @@ void IVCurve::FileDialog(bool LoadOrSave)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : PlotMe
  *
- * Description :
+ * Description : Setup the actual plot
  *
- * Inputs :
+ * Inputs : Index - not used
  *
- * Returns :
+ * Returns : NONE
  *
- * Error Conditions :
+ * Error Conditions : NONE
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -926,8 +905,17 @@ void IVCurve::PlotMe(Int_t Index)
     // SetTitle(char) FIXME - Add in a dialog to get info on what is under test
     //
     TH1 *f = fGraph->GetHistogram();
-    f->SetXTitle("Voltage");
-    f->SetYTitle("Current (A)");
+    if (fResistor == 0.0)
+    {
+	f->SetXTitle("Set Voltage");
+	f->SetYTitle("Measured Voltage");
+    }
+    else
+    {
+	f->SetXTitle("Set Current(A)");
+	f->SetYTitle("Measured Voltage");
+	//f->SetYTitle("Measured Current (A)");
+    }
     f->SetLabelSize(0.03, "X");
     f->SetLabelSize(0.03, "Y");
 
@@ -1274,11 +1262,11 @@ bool IVCurve::Load(const char *file)
  *
  * Inputs : filename to save
  *
- * Returns :
+ * Returns : true on success. 
  *
- * Error Conditions :
+ * Error Conditions : file open failed
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -1334,24 +1322,23 @@ bool IVCurve::Save(const char *file)
 /**
  ******************************************************************
  *
- * Function Name :
+ * Function Name : CreateGraphObjects
  *
- * Description :
+ * Description : Clean up any old graphics objects and create new ones
  *
- * Inputs :
+ * Inputs : NONE
  *
- * Returns :
+ * Returns : true on success
  *
- * Error Conditions :
+ * Error Conditions : NONE to date
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
  *
  *******************************************************************
  */
-
 bool IVCurve::CreateGraphObjects(void)
 {
     SET_DEBUG_STACK;
@@ -1447,7 +1434,7 @@ void IVCurve::DoSaveAs(void)
  * Function Name : CheckInstrumentStatus
  *
  * Description : 
- *               
+ *    Color is green if instrument is alive and talking otherwise red
  *
  * Inputs : none
  *
@@ -1455,7 +1442,7 @@ void IVCurve::DoSaveAs(void)
  *
  * Error Conditions : 
  * 
- * Unit Tested on: 
+ * Unit Tested on: 25-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -1506,7 +1493,7 @@ void IVCurve::CheckInstrumentStatus(void)
  *
  * Error Conditions : none
  *
- * Unit Tested on: 25-Mar-22
+ * Unit Tested on: 23-Jul-23
  *
  * Unit Tested by: CBL
  *
@@ -1522,19 +1509,22 @@ void IVCurve::TimeoutProc(void)
 
     if(fTakeData)
     {
-#if 1
-	// Test code
-	x = x + 1.0;
-	y = pow(x,2.0);
-	fGraph->AddPoint(x,y);
-#else
-	// advance the voltage, take the measurement and plot it. 
-	fInstruments->StepAndAcquire();
-	x = fInstruments->Voltage();
-	y = fInstruments->Current();
-	fGraph->AddPoint(x,y);
-	fTakeData = !fInstruments->Done();
-#endif
+	if (fTest)
+	{
+	    // Test code
+	    x = x + 1.0;
+	    y = pow(x,2.0);
+	    fGraph->AddPoint(x,y);
+	}
+	else 
+	{
+	    // advance the voltage, take the measurement and plot it. 
+	    fInstruments->StepAndAcquire();
+	    x = fInstruments->Voltage();
+	    y = fInstruments->Result();
+	    fGraph->AddPoint(x,y);
+	    fTakeData = !fInstruments->Done();
+	}
 	PlotMe(0);
     }
     //cout << "Timeout" << endl;
@@ -1645,8 +1635,6 @@ bool IVCurve::ReadConfiguration(void)
     SET_DEBUG_STACK;
     CLogger *log = CLogger::GetThis();
 
-
-
     fEnv = new TEnv(".IVCurve");
     log->Log("# IVCurve Loading prefs: %s \n", fEnv->GetRcName());
 
@@ -1659,7 +1647,13 @@ bool IVCurve::ReadConfiguration(void)
     double Stop           = fEnv->GetValue("VoltageSource.Stop",     1.0);
     double Step           = fEnv->GetValue("VoltageSource.Step",     0.1);
     double Fine           = fEnv->GetValue("VoltageSource.FineStep", 0.01);
+    double Window         = fEnv->GetValue("VoltageSource.Window",    0.1);
     fResistor             = fEnv->GetValue("IVCurve.Resistance", 1000.0);
+    fTest                 = fEnv->GetValue("IVCurve.Test", kFALSE);
+    if (fTest)
+    {
+	log->Log(" IVCurve running in test mode.\n");
+    }
 
     // Open the instruments - 
     fInstruments = new Instruments(Voltmeter, VoltageSource);
@@ -1673,6 +1667,7 @@ bool IVCurve::ReadConfiguration(void)
     fInstruments->Stop( Stop);
     fInstruments->Step( Step);
     fInstruments->Fine( Fine);
+    fInstruments->Window(Window);
 
     SET_DEBUG_STACK;
     return true;
@@ -1711,7 +1706,10 @@ bool IVCurve::WriteConfiguration(void)
     fEnv->SetValue("VoltageSource.Stop",     fInstruments->Stop());
     fEnv->SetValue("VoltageSource.Step",     fInstruments->Step());
     fEnv->SetValue("VoltageSource.FineStep", fInstruments->Fine());
+    fEnv->SetValue("VoltageSource.Window",   fInstruments->Window());
     fEnv->SetValue("IVCurve.Resistance",     fResistor);
+    fEnv->SetValue("IVCurve.Test",           fTest);
+
     fEnv->SaveLevel(kEnvUser);
     delete fEnv;
     fEnv = 0;
