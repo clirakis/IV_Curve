@@ -134,7 +134,8 @@ void Instruments::Reset(void)
 {
     SET_DEBUG_STACK;
     fStepNumber  = 0;
-    fVoltage     = fStartVoltage;
+    fSetVoltage  = fStartVoltage;
+    fVoltage     = 0.0;
     fResult      = 0.0;
     fCurrentStep = fStep;
     fStepType    = 0;
@@ -317,23 +318,22 @@ bool Instruments::StepAndAcquire(void)
 	return false;
     }
     fStepNumber++;
-    hgpib230->SetVoltage(fVoltage);
+    hgpib230->SetVoltage(fSetVoltage);
+    fVoltage = fSetVoltage;
     // Settle time
     nanosleep(&sleeptime, NULL);
     // Read back value. 
     fResult = hgpib196->GetData();
-    //LogPtr->Log("%g, %g,%s\n", x, hgpib196->GetData(), hgpib196->Prefix());
     LogPtr->Log("%g, %g\n", fVoltage, fResult);
 
     /**
      * Step to next value. 
      * near zero or any other value for that matter step fine. 
      */
-
     switch(fStepType)
     {
     case 0: /* coarse */
-	if (fabs(fVoltage+fCurrentStep)>=fWindow)
+	if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
 	{
 	    StepSize = fStep;
 	}
@@ -344,7 +344,7 @@ bool Instruments::StepAndAcquire(void)
 	}
 	break;
     case 1:
-	if (fabs(fVoltage+fCurrentStep)>=fWindow)
+	if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
 	{
 	    // Crossed the threshold
 	    fStepType = 0;
@@ -356,14 +356,10 @@ bool Instruments::StepAndAcquire(void)
 	}
 	break;
     }
-    if (fCurrentStep != StepSize)
-    {
-	cout << "Change" << endl;
-	fCurrentStep = StepSize;
-	// Give this more time to settle
-	nanosleep(&slough, NULL);
-    }
-    fVoltage += fCurrentStep;
+    // This is now set to the next requested voltage. 
+    fSetVoltage += StepSize;
+    // Do a little rounding
+    if (fabs(fSetVoltage)<1.0e-6) fSetVoltage = 0.0;
     SET_DEBUG_STACK;
     return true;
 }

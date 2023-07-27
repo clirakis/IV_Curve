@@ -173,7 +173,7 @@ public:
      * Errors:
      *
      */
-    inline double Result(void) const {return fResult;};
+    inline double   Result(void) const {return fResult;};
 
     inline void     Start(double Volts) {fStartVoltage = Volts;};
     inline double   Start(void) const   {return fStartVoltage;};
@@ -232,7 +232,8 @@ private:
     double   fStopVoltage;     /*! Ending Voltage for sweep */
     double   fStep;            /*! Corse step               */
     double   fFine;            /*! Fine step                */
-    double   fVoltage;         /*! Requested voltage value  */
+    double   fSetVoltage;      /*! next Requested voltage value  */
+    double   fVoltage;         /*! Voltage used this time.  */
     double   fWindow;          /*! Window where fine step kicks in. eg fabs(V)<window */
     double   fResult;          /*! Last voltage or current measured    */
     double   fCurrentStep;     /*! checking. */

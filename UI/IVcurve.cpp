@@ -1522,6 +1522,10 @@ void IVCurve::TimeoutProc(void)
 	    fInstruments->StepAndAcquire();
 	    x = fInstruments->Voltage();
 	    y = fInstruments->Result();
+	    if (fResistor >= 0.0)
+	    {
+		x = x/fResistor;
+	    }
 	    fGraph->AddPoint(x,y);
 	    fTakeData = !fInstruments->Done();
 	}
