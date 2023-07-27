@@ -308,7 +308,7 @@ bool Instruments::StepAndAcquire(void)
     double StepSize = 0.0; 
     /* Sleep between set and read. */
     const struct timespec sleeptime = {0L, 250000000};
-    const struct timespec slough    = {1L, 000000000};
+    //const struct timespec slough    = {1L, 000000000};
     CLogger *LogPtr = CLogger::GetThis();
     //int verbose = LogPtr->GetVerbose();
 
@@ -363,13 +363,82 @@ bool Instruments::StepAndAcquire(void)
     SET_DEBUG_STACK;
     return true;
 }
+/**
+ ******************************************************************
+ *
+ * Function Name : 
+ *
+ * Description : 
+ *
+ * Inputs : 
+ *
+ * Returns : 
+ *
+ * Error Conditions : 
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
 uint8_t Instruments::MultimeterAddress(void) const 
 {
     SET_DEBUG_STACK;
     return hgpib196->Address();
 }
+/**
+ ******************************************************************
+ *
+ * Function Name : 
+ *
+ * Description : 
+ *
+ * Inputs : 
+ *
+ * Returns : 
+ *
+ * Error Conditions : 
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
 uint8_t Instruments::VoltageSourceAddress(void) const 
 {
     SET_DEBUG_STACK;
     return hgpib230->Address();
+}
+/**
+ ******************************************************************
+ *
+ * Function Name : SetCurrentLimit
+ *
+ * Description : Set the current limit on the Keithley230 Voltage source
+ *
+ * Inputs :  val - current to set in amps
+ *
+ * Returns : NONE
+ *
+ * Error Conditions : 
+ * 
+ * Unit Tested on: 
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+void Instruments::SetCurrentLimit(double val)
+{
+    SET_DEBUG_STACK;
+    CLogger *LogPtr = CLogger::GetThis();
+    LogPtr->Log("# Setting current limit to: %g\n", val);
+    fMaxI = val;
+    hgpib230->SetCurrent(val);
+    SET_DEBUG_STACK;
 }

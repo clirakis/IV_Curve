@@ -15,6 +15,8 @@
  * across the diode. 
  *
  * 25-July-23   CBL put TEnv in the main class IV_Curve. Hooking it up.
+ * 26-July-23   CBL well this works, I want to set it up that I can run 
+ *                  different types of curves. 
  *
  * Restrictions/Limitations :
  *

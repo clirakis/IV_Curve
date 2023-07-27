@@ -113,7 +113,15 @@ private:
 
     // Enviroment settings
     Double_t            fResistor;
-    bool                fTest;
+
+    /*!
+     * modes
+     *    0 - Test, run sim
+     *    1 - Volt:Volt, make sure the voltage read is the voltage delivered
+     *    2 - Infered Current from settng a resistor value
+     *    3 - True IV curve. 
+     */
+    UChar_t             fMode;    
 
 
     // Private functions.

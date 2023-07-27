@@ -144,7 +144,24 @@ public:
      */
     bool Setup(bool Current);
 
-    
+
+    /*!
+     * Description: 
+     *   Set the current limit on the voltage source
+     *
+     * Arguments:
+     *   Current limit in ampss
+     *
+     * Returns:
+     *   NONE
+     *
+     * Errors:
+     *
+     */
+    void SetCurrentLimit(double val);
+    inline double   CurrentLimit(void) const {return fMaxI;};
+
+
     /*!
      * Description: 
      *   Voltage - Return the requested voltage value from the 230 unit
@@ -235,9 +252,11 @@ private:
     double   fSetVoltage;      /*! next Requested voltage value  */
     double   fVoltage;         /*! Voltage used this time.  */
     double   fWindow;          /*! Window where fine step kicks in. eg fabs(V)<window */
+    double   fMaxI;            /*! Maximum Current from voltage source */
     double   fResult;          /*! Last voltage or current measured    */
     double   fCurrentStep;     /*! checking. */
     uint8_t  fStepType;        /*! 0 - coarse, 1 - fine */
+
 
     /*! The static 'this' pointer. */
     static Instruments *fInstruments;

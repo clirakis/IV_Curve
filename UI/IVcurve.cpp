@@ -905,16 +905,22 @@ void IVCurve::PlotMe(Int_t Index)
     // SetTitle(char) FIXME - Add in a dialog to get info on what is under test
     //
     TH1 *f = fGraph->GetHistogram();
-    if (fResistor == 0.0)
+
+    switch(fMode)
     {
+    case 0:
+    case 1:
 	f->SetXTitle("Set Voltage");
 	f->SetYTitle("Measured Voltage");
-    }
-    else
-    {
+	break;
+    case 2:
 	f->SetXTitle("Set Current(A)");
 	f->SetYTitle("Measured Voltage");
-	//f->SetYTitle("Measured Current (A)");
+	break;
+    case 3:
+	f->SetXTitle("Set Voltage");
+	f->SetYTitle("Measured Current (A)");
+	break;
     }
     f->SetLabelSize(0.03, "X");
     f->SetLabelSize(0.03, "Y");
@@ -1509,26 +1515,28 @@ void IVCurve::TimeoutProc(void)
 
     if(fTakeData)
     {
-	if (fTest)
+	switch(fMode)
 	{
+	case 0:
 	    // Test code
 	    x = x + 1.0;
 	    y = pow(x,2.0);
 	    fGraph->AddPoint(x,y);
-	}
-	else 
-	{
+	    break;
+	default:
 	    // advance the voltage, take the measurement and plot it. 
 	    fInstruments->StepAndAcquire();
 	    x = fInstruments->Voltage();
 	    y = fInstruments->Result();
-	    if (fResistor >= 0.0)
+	    if (fMode == 2)
 	    {
 		x = x/fResistor;
 	    }
 	    fGraph->AddPoint(x,y);
 	    fTakeData = !fInstruments->Done();
+	    break;
 	}
+
 	PlotMe(0);
     }
     //cout << "Timeout" << endl;
@@ -1652,12 +1660,26 @@ bool IVCurve::ReadConfiguration(void)
     double Step           = fEnv->GetValue("VoltageSource.Step",     0.1);
     double Fine           = fEnv->GetValue("VoltageSource.FineStep", 0.01);
     double Window         = fEnv->GetValue("VoltageSource.Window",    0.1);
-    fResistor             = fEnv->GetValue("IVCurve.Resistance", 1000.0);
-    fTest                 = fEnv->GetValue("IVCurve.Test", kFALSE);
-    if (fTest)
+    fResistor             = fEnv->GetValue("IVCurve.Resistance",   1000.0);
+    fMode                 = fEnv->GetValue("IVCurve.Mode",            0);
+    double MaxCurrent     = fEnv->GetValue("VoltageSource.MaxI",   4.0e-3);
+    
+    switch (fMode)
     {
-	log->Log(" IVCurve running in test mode.\n");
+    case 0:
+	log->Log("# IVCurve running in test mode.\n");
+	break;
+    case 1:
+	log->Log("# IVCurve running Volts:Volts for calibration.\n");
+	break;
+    case 2:
+	log->Log("# IVCurve running infered current using known resistor.\n");
+	break;
+    case 3:
+	log->Log("# IVCurve running true I-V\n");
+	break;
     }
+
 
     // Open the instruments - 
     fInstruments = new Instruments(Voltmeter, VoltageSource);
@@ -1672,6 +1694,7 @@ bool IVCurve::ReadConfiguration(void)
     fInstruments->Step( Step);
     fInstruments->Fine( Fine);
     fInstruments->Window(Window);
+    fInstruments->SetCurrentLimit(MaxCurrent);
 
     SET_DEBUG_STACK;
     return true;
@@ -1712,7 +1735,8 @@ bool IVCurve::WriteConfiguration(void)
     fEnv->SetValue("VoltageSource.FineStep", fInstruments->Fine());
     fEnv->SetValue("VoltageSource.Window",   fInstruments->Window());
     fEnv->SetValue("IVCurve.Resistance",     fResistor);
-    fEnv->SetValue("IVCurve.Test",           fTest);
+    fEnv->SetValue("IVCurve.Mode",           fMode);
+    fEnv->SetValue("VoltageSource.MaxI",     fInstruments->CurrentLimit());
 
     fEnv->SaveLevel(kEnvUser);
     delete fEnv;
