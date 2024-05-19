@@ -69,11 +69,21 @@ Instruments::Instruments (uint8_t Keithley196_Address,
 			  uint8_t Keithley230_Address)
 {
     SET_DEBUG_STACK;
-    //CLogger *LogPtr = CLogger::GetThis();
+    CLogger *LogPtr = CLogger::GetThis();
     fInstruments = this;
+    fError = false;
+
     // Try to open the instruments. 
-    OpenKeithley196(Keithley196_Address);
-    OpenKeithley230(Keithley230_Address);
+    if(!OpenKeithley196(Keithley196_Address))
+    {
+	fError = true;
+	return;
+    }
+    if (!OpenKeithley230(Keithley230_Address))
+    {
+	fError = true;
+	return;
+    }
 
     Reset();
     fStartVoltage = kStart;
@@ -81,6 +91,9 @@ Instruments::Instruments (uint8_t Keithley196_Address,
     fStep         = kIncrement;
     fFine         = kFine;
     fCurrentStep  = fStep;
+    fFINE_ONLY    = true;
+    fNAVG         = 1;
+
     SET_DEBUG_STACK;
 }
 
@@ -146,8 +159,8 @@ void Instruments::Reset(void)
  *
  * Function Name : OpenKeithley196
  *
- * Description : Open the multimeter in this case straight out of the box
- *               setup to measure voltage. 
+ * Description : Open the multimeter in this case straight out 
+ *               of the box setup to measure voltage. 
  *
  * Inputs : NONE
  *
@@ -166,8 +179,8 @@ bool Instruments::OpenKeithley196(uint8_t address)
 {
     SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
-    int verbose = LogPtr->GetVerbose();
-    hgpib196 = new Keithley196( address, verbose);
+    int verbose     = LogPtr->GetVerbose();
+    hgpib196        = new Keithley196( address, verbose);
     if (hgpib196->CheckError())
     {
 	LogPtr->Log("# Error opening device. perhaps wrong GPIB address.\n");
@@ -205,8 +218,8 @@ bool Instruments::OpenKeithley230(uint8_t address)
 {
     SET_DEBUG_STACK;
     CLogger *LogPtr = CLogger::GetThis();
-    int verbose = LogPtr->GetVerbose();
-    hgpib230 = new Keithley2x0( address, 'V', verbose);
+    int verbose     = LogPtr->GetVerbose();
+    hgpib230        = new Keithley2x0( address, 'V', verbose);
     if (hgpib230->CheckError())
     {
 	LogPtr->Log("# Error opening 230. perhaps wrong GPIB address.%d \n", 1);
@@ -285,9 +298,45 @@ bool Instruments::Setup(bool Current)
 /**
  ******************************************************************
  *
+ * Function Name : MeasureAndAverage
+ *
+ * Description : Measure the result multiple times and return the
+ *               Average. 
+ *
+ * Inputs : NONE
+ *
+ * Returns : Average result
+ *
+ * Error Conditions : fails if either of the GPIB units are not open
+ * 
+ * Unit Tested on: 29-Jul-23
+ *
+ * Unit Tested by: CBL
+ *
+ *
+ *******************************************************************
+ */
+double Instruments::MeasureAndAverage(uint32_t navg)
+{
+    double AVG  = (double) navg;
+    const struct timespec sleeptime = {0L, 100000000};
+
+    double Result = 0.0;
+
+    for (uint32_t i=0;i<navg;i++)
+    {
+	Result += hgpib196->GetData();
+	nanosleep(&sleeptime, NULL);
+    }
+    return Result/AVG;
+}
+/**
+ ******************************************************************
+ *
  * Function Name : StepAndAcquire
  *
- * Description : Step the voltage applied and measure the resulting current
+ * Description : Step the voltage applied and measure the 
+ *               resulting current
  *
  * Inputs : NONE
  *
@@ -323,40 +372,48 @@ bool Instruments::StepAndAcquire(void)
     // Settle time
     nanosleep(&sleeptime, NULL);
     // Read back value. 
-    fResult = hgpib196->GetData();
+    //fResult = hgpib196->GetData();
+    fResult = MeasureAndAverage(fNAVG);
     LogPtr->Log("%g, %g\n", fVoltage, fResult);
-
-    /**
-     * Step to next value. 
-     * near zero or any other value for that matter step fine. 
-     */
-    switch(fStepType)
+    if (fFINE_ONLY)
     {
-    case 0: /* coarse */
-	if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
-	{
-	    StepSize = fStep;
-	}
-	else
-	{
-	    fStepType = 1;
-	    StepSize = fFine;
-	}
-	break;
-    case 1:
-	if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
-	{
-	    // Crossed the threshold
-	    fStepType = 0;
-	    StepSize = fStep;
-	}
-	else
-	{
-	    StepSize = fFine;
-	}
-	break;
+	StepSize = fFine;
     }
-    // This is now set to the next requested voltage. 
+    else
+    {
+	/**
+	 * Step to next value. 
+	 * near zero or any other value for that matter step fine. 
+	 */
+	switch(fStepType)
+	{
+	case 0: /* coarse */
+	    if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
+	    {
+		StepSize = fStep;
+	    }
+	    else
+	    {
+		fStepType = 1;
+		StepSize = fFine;
+	    }
+	    break;
+	case 1:
+	    if (fabs(fSetVoltage+fCurrentStep)>=fWindow)
+	    {
+		// Crossed the threshold
+		fStepType = 0;
+		StepSize = fStep;
+	    }
+	    else
+	    {
+		StepSize = fFine;
+	    }
+	    break;
+	}
+    }
+    // This is now set to the next requested voltage.
+    fCurrentStep = StepSize;
     fSetVoltage += StepSize;
     // Do a little rounding
     if (fabs(fSetVoltage)<1.0e-6) fSetVoltage = 0.0;

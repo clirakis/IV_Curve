@@ -203,8 +203,15 @@ public:
     inline void     Window(double volts) {fWindow = volts;};
     inline double   Window(void) const  {return fWindow;};
 
+    inline bool     FineOnly(void) const {return fFINE_ONLY;};
+    inline void     FineOnly(bool set) {fFINE_ONLY = set;};
+    inline uint32_t NAVG(void) const {return fNAVG;};
+    inline void     NAVG(uint32_t set) {fNAVG = set;};
+
     uint8_t MultimeterAddress(void)    const;
     uint8_t VoltageSourceAddress(void) const;
+
+    inline bool Error(void) const {return fError;};
 
     /*! Access the This pointer. */
     static Instruments* GetThis(void) {return fInstruments;};
@@ -239,6 +246,20 @@ private:
      */
     bool OpenKeithley230(uint8_t address);
 
+    /*!
+     * Description: 
+     *   
+     *
+     * Arguments:
+     *   
+     *
+     * Returns:
+     *
+     * Errors:
+     *
+     */
+    double MeasureAndAverage(uint32_t navg);
+
     Keithley196*  hgpib196;
     Keithley2x0*  hgpib230;
 
@@ -256,7 +277,10 @@ private:
     double   fResult;          /*! Last voltage or current measured    */
     double   fCurrentStep;     /*! checking. */
     uint8_t  fStepType;        /*! 0 - coarse, 1 - fine */
+    uint32_t fNAVG;            /*! Number of averages to perform.*/
+    bool     fFINE_ONLY;       /*! If true only step fine. */
 
+    bool     fError;           /*! did an error occur in the last call? */
 
     /*! The static 'this' pointer. */
     static Instruments *fInstruments;

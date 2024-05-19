@@ -590,7 +590,21 @@ void IVCurve::HandleToolBar(Int_t id)
         tb->SetState(kButtonUp);
 	fTimer->Start(500, kFALSE);
 	fInstruments->Reset();
-	fInstruments->Setup(false);  // set to voltage source, FIXME
+	switch(fMode)
+	{
+	case 0:
+	    // do nothing, simulation mode. 
+	    break;
+	case 1:
+	case 2:
+            // set to measure Voltage
+	    fInstruments->Setup(kFALSE);  
+	    break;
+	case 3:  // Current
+            // set to Measure Current
+	    fInstruments->Setup(kTRUE);  
+	    break;
+	}
 	CreateGraphObjects();
 	fTakeData = kTRUE;
 	break;
@@ -1655,15 +1669,17 @@ bool IVCurve::ReadConfiguration(void)
 
     uint8_t Voltmeter     = fEnv->GetValue("Voltmeter.GPIB", 3);
     uint8_t VoltageSource = fEnv->GetValue("VoltageSource.GPIB", 14);
-    double Start          = fEnv->GetValue("VoltageSource.Start",   -1.0);
-    double Stop           = fEnv->GetValue("VoltageSource.Stop",     1.0);
-    double Step           = fEnv->GetValue("VoltageSource.Step",     0.1);
+    double Start          = fEnv->GetValue("VoltageSource.Start", -1.0);
+    double Stop           = fEnv->GetValue("VoltageSource.Stop",   1.0);
+    double Step           = fEnv->GetValue("VoltageSource.Step",   0.1);
     double Fine           = fEnv->GetValue("VoltageSource.FineStep", 0.01);
     double Window         = fEnv->GetValue("VoltageSource.Window",    0.1);
     fResistor             = fEnv->GetValue("IVCurve.Resistance",   1000.0);
     fMode                 = fEnv->GetValue("IVCurve.Mode",            0);
     double MaxCurrent     = fEnv->GetValue("VoltageSource.MaxI",   4.0e-3);
-    
+    int    NAVG           = fEnv->GetValue("IVCurve.Average",    1);
+    bool   FINEONLY       = fEnv->GetValue("IVCurve.FINE_ONLY",  1);
+
     switch (fMode)
     {
     case 0:
@@ -1683,6 +1699,11 @@ bool IVCurve::ReadConfiguration(void)
 
     // Open the instruments - 
     fInstruments = new Instruments(Voltmeter, VoltageSource);
+    if (fInstruments->Error())
+    {
+	cerr << "ERROR STARTING INSTRUMENTS." << endl;
+	return false;
+    }
     fComment     = NULL;
 
     /**
@@ -1695,6 +1716,8 @@ bool IVCurve::ReadConfiguration(void)
     fInstruments->Fine( Fine);
     fInstruments->Window(Window);
     fInstruments->SetCurrentLimit(MaxCurrent);
+    fInstruments->FineOnly(FINEONLY);
+    fInstruments->NAVG(NAVG);
 
     SET_DEBUG_STACK;
     return true;
@@ -1737,6 +1760,8 @@ bool IVCurve::WriteConfiguration(void)
     fEnv->SetValue("IVCurve.Resistance",     fResistor);
     fEnv->SetValue("IVCurve.Mode",           fMode);
     fEnv->SetValue("VoltageSource.MaxI",     fInstruments->CurrentLimit());
+    fEnv->SetValue("IVCurve.Average",    (int) fInstruments->NAVG());
+    fEnv->SetValue("IVCurve.FINE_ONLY",  (bool) fInstruments->FineOnly());
 
     fEnv->SaveLevel(kEnvUser);
     delete fEnv;

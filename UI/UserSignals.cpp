@@ -132,8 +132,8 @@ void Terminate (int sig)
     }
     if (sig!=0)
     {
-        sprintf ( tmp, " %s %d", LastFile, LastLine);
-        strncat ( msg, tmp, sizeof(msg));
+        int nchar = sprintf ( tmp, " %s %d", LastFile, LastLine);
+        strncat ( msg, tmp, sizeof(msg)-nchar);
 	logger->LogCommentTimestamp(msg);
 	//logger->Log("# %s\n",msg);
     }
